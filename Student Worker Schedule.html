@@ -649,15 +649,18 @@
         </div>
 
         <div class="admin-controls">
-            <button class="admin-btn save" onclick="saveSchedule()">Save</button>
+                            <button class="admin-btn save" onclick="saveSchedule()">Quick Save</button>
             <button class="admin-btn load" onclick="loadSchedule()">Load</button>
             <button class="admin-btn clear" onclick="clearTimes()">Clear</button>
             <button class="admin-btn export" onclick="exportToPDF()">Export</button>
-            <button class="admin-btn" onclick="downloadUpdatedFile()" style="background: #8b5cf6;">Download</button>
-            <button class="admin-btn" onclick="copyCodeToClipboard()" style="background: #f59e0b;">Copy Code</button>
+            <button class="admin-btn" onclick="exportSchedule()" style="background: #059669;">Save Schedule</button>
+            <button class="admin-btn" onclick="importSchedule()" style="background: #dc2626;">Load Schedule</button>
             <button class="admin-btn" onclick="openAddStudentModal()" style="background: #10b981;">Add Student</button>
         </div>
     </div>
+
+    <!-- Hidden file input for schedule import -->
+    <input type="file" id="scheduleFileInput" accept=".html" style="display: none;" onchange="handleScheduleFileSelect(event)">
 
     <!-- Add Student Modal -->
     <div id="addStudentModal" class="modal">
@@ -1857,109 +1860,7 @@
             renderTotalsTable();
         }
 
-        // File download and code copy functions
-        function downloadUpdatedFile() {
-            try {
-                // First, ensure we have the latest schedule data
-                console.log('Current schedule data:', schedule);
-                console.log('Current people data:', people);
-                
-                // Get the original HTML content from the current page
-                const originalHtml = document.documentElement.outerHTML;
-                
-                // Create a more robust replacement approach
-                let updatedHtml = originalHtml;
-                
-                // Replace the sampleSchedule object - handle both empty and populated schedules
-                const currentScheduleString = JSON.stringify(schedule, null, 8);
-                const scheduleRegex = /const sampleSchedule = \{[\s\S]*?\};/;
-                const updatedScheduleString = `        const sampleSchedule = ${currentScheduleString};`;
-                
-                if (scheduleRegex.test(updatedHtml)) {
-                    updatedHtml = updatedHtml.replace(scheduleRegex, updatedScheduleString);
-                    console.log('Schedule data replaced successfully');
-                    console.log('Replaced with:', updatedScheduleString);
-                } else {
-                    console.error('Could not find sampleSchedule in HTML');
-                    alert('Could not find schedule data in the HTML file. Please try again.');
-                    return;
-                }
-                
-                // Replace the people array
-                const currentPeopleString = JSON.stringify(people, null, 8);
-                const peopleRegex = /const people = \[[\s\S]*?\];/;
-                const updatedPeopleString = `        const people = ${currentPeopleString};`;
-                
-                if (peopleRegex.test(updatedHtml)) {
-                    updatedHtml = updatedHtml.replace(peopleRegex, updatedPeopleString);
-                    console.log('People data replaced successfully');
-                    console.log('Replaced with:', updatedPeopleString);
-                } else {
-                    console.error('Could not find people array in HTML');
-                    alert('Could not find people data in the HTML file. Please try again.');
-                    return;
-                }
-                
-                // Verify the replacements worked
-                if (!updatedHtml.includes(currentScheduleString) || !updatedHtml.includes(currentPeopleString)) {
-                    console.error('Data replacement verification failed');
-                    console.log('Looking for schedule string:', currentScheduleString);
-                    console.log('Looking for people string:', currentPeopleString);
-                    alert('Error: Data replacement failed. Please try again.');
-                    return;
-                }
-                
-                // Create and download the file
-                const blob = new Blob([updatedHtml], { type: 'text/html' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `student_schedule_updated_${new Date().toISOString().split('T')[0]}.html`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                
-                console.log('File downloaded successfully');
-                alert('Updated HTML file downloaded successfully! The file contains your current schedule data.');
-                
-            } catch (error) {
-                console.error('Error downloading file:', error);
-                alert('Error downloading file. Please try again. Error: ' + error.message);
-            }
-        }
 
-        function copyCodeToClipboard() {
-            try {
-                // Generate the schedule data as formatted JavaScript
-                const scheduleString = JSON.stringify(schedule, null, 8);
-                const peopleString = JSON.stringify(people, null, 8);
-                
-                const codeToCopy = `// Replace the existing sampleSchedule object with this:
-const sampleSchedule = ${scheduleString};
-
-// Replace the existing people array with this:
-const people = ${peopleString};`;
-                
-                // Copy to clipboard
-                navigator.clipboard.writeText(codeToCopy).then(() => {
-                    alert('Code copied to clipboard! Paste it into your HTML file to update the schedule data.');
-                }).catch(() => {
-                    // Fallback for older browsers
-                    const textArea = document.createElement('textarea');
-                    textArea.value = codeToCopy;
-                    document.body.appendChild(textArea);
-                    textArea.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(textArea);
-                    alert('Code copied to clipboard! Paste it into your HTML file to update the schedule data.');
-                });
-                
-            } catch (error) {
-                console.error('Error copying code:', error);
-                alert('Error copying code to clipboard. Please try again.');
-            }
-        }
 
         // Clear all scheduled hours
         function clearAllHours() {
@@ -1967,6 +1868,144 @@ const people = ${peopleString};`;
             renderWeekGrid();
             renderTotalsTable();
             console.log('All scheduled hours cleared');
+        }
+
+        // ===== PHASE 2: EXPORT/IMPORT FEATURE =====
+
+        function exportSchedule() {
+            try {
+                console.log('Exporting schedule as self-contained HTML file...');
+                
+                // Get the current HTML content
+                const currentHtml = document.documentElement.outerHTML;
+                
+                // Create a modified version with embedded schedule data
+                let exportedHtml = currentHtml;
+                
+                // Replace the sampleSchedule with current schedule data
+                const currentScheduleString = JSON.stringify(schedule, null, 8);
+                const scheduleRegex = /const sampleSchedule = \{[\s\S]*?\};/;
+                const updatedScheduleString = `        const sampleSchedule = ${currentScheduleString};`;
+                
+                if (scheduleRegex.test(exportedHtml)) {
+                    exportedHtml = exportedHtml.replace(scheduleRegex, updatedScheduleString);
+                    console.log('Schedule data embedded successfully');
+                } else {
+                    console.error('Could not find sampleSchedule in HTML');
+                    alert('Error: Could not embed schedule data. Please try again.');
+                    return;
+                }
+                
+                // Replace the people array with current data
+                const currentPeopleString = JSON.stringify(people, null, 8);
+                const peopleRegex = /const people = \[[\s\S]*?\];/;
+                const updatedPeopleString = `        const people = ${currentPeopleString};`;
+                
+                if (peopleRegex.test(exportedHtml)) {
+                    exportedHtml = exportedHtml.replace(peopleRegex, updatedPeopleString);
+                    console.log('People data embedded successfully');
+                } else {
+                    console.error('Could not find people array in HTML');
+                    alert('Error: Could not embed people data. Please try again.');
+                    return;
+                }
+                
+                // Create and download the file
+                const blob = new Blob([exportedHtml], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `student_schedule_${new Date().toISOString().split('T')[0]}.html`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                console.log('Schedule exported successfully');
+                alert('Schedule exported successfully! The file contains your current schedule data and can be shared or backed up.');
+                
+            } catch (error) {
+                console.error('Error exporting schedule:', error);
+                alert('Error exporting schedule. Please try again. Error: ' + error.message);
+            }
+        }
+
+        function importSchedule() {
+            // Trigger the hidden file input
+            document.getElementById('scheduleFileInput').click();
+        }
+
+        function handleScheduleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            if (!file.name.endsWith('.html')) {
+                alert('Please select an HTML file.');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    console.log('Importing schedule from HTML file...');
+                    
+                    const htmlContent = e.target.result;
+                    
+                    // Extract schedule data from the HTML
+                    const scheduleRegex = /const sampleSchedule = \{[\s\S]*?\};/;
+                    const scheduleMatch = htmlContent.match(scheduleRegex);
+                    
+                    if (!scheduleMatch) {
+                        alert('Error: Could not find schedule data in the selected file.');
+                        return;
+                    }
+                    
+                    // Extract the schedule object
+                    const scheduleString = scheduleMatch[0].replace('const sampleSchedule = ', '').replace(/;$/, '');
+                    const importedSchedule = JSON.parse(scheduleString);
+                    
+                    // Extract people data from the HTML
+                    const peopleRegex = /const people = \[[\s\S]*?\];/;
+                    const peopleMatch = htmlContent.match(peopleRegex);
+                    
+                    if (!peopleMatch) {
+                        alert('Error: Could not find people data in the selected file.');
+                        return;
+                    }
+                    
+                    // Extract the people array
+                    const peopleString = peopleMatch[0].replace('const people = ', '').replace(/;$/, '');
+                    const importedPeople = JSON.parse(peopleString);
+                    
+                    // Confirm the import
+                    if (confirm(`Import schedule from "${file.name}"?\n\nThis will replace your current schedule and student list.`)) {
+                        // Update the schedule and people data
+                        schedule = importedSchedule;
+                        people.length = 0;
+                        importedPeople.forEach(person => people.push(person));
+                        
+                        // Save to localStorage using hybrid system
+                        saveHybridSchedule();
+                        localStorage.setItem('studentWorkerPeople', JSON.stringify(people));
+                        
+                        // Re-render the interface
+                        renderWeekGrid();
+                        renderTotalsTable();
+                        
+                        console.log('Schedule imported successfully');
+                        alert('Schedule imported successfully! Your current schedule has been replaced with the imported data.');
+                    }
+                    
+                } catch (error) {
+                    console.error('Error importing schedule:', error);
+                    alert('Error importing schedule. Please make sure you selected a valid schedule file. Error: ' + error.message);
+                }
+                
+                // Clear the file input
+                event.target.value = '';
+            };
+            
+            reader.readAsText(file);
         }
 
         // Initialize
