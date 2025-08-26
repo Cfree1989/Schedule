@@ -803,12 +803,9 @@
         };
 
         function initializeSchedule() {
-            // Clear any old cached data to avoid conflicts with updated names/codes
-            localStorage.removeItem('studentWorkerPeople');
-            
             // Load schedule data using hybrid approach
             loadHybridSchedule();
-            
+
             // Migrate any old "S" code schedule entries to "SC" code
             Object.keys(schedule).forEach(key => {
                 if (key.includes('-S')) {
@@ -818,24 +815,37 @@
                 }
             });
             
-            // Always use the current people array (no merging with old data)
+            // Load people list from localStorage if available
             people.length = 0;
-            people.push(
-                { code: "KL", name: "Kiran Lutchman", role: "PA", color: "kl" },
-                { code: "CJ", name: "Calcea Johnson", role: "PA", color: "cj" },
-                { code: "CF", name: "Colin Frey", role: "WS", color: "cf" },
-                { code: "IR", name: "Ian Robertson", role: "WS", color: "ir" },
-                { code: "HF", name: "Heidi Faustermann", role: "WS", color: "hf" },
-                { code: "RD", name: "Rohan Durgam", role: "GA", color: "rd" },
-                { code: "KO", name: "Kelvin O'Young", role: "WS", color: "ko" },
-                { code: "MV", name: "Michael Vasquez", role: "WS", color: "mv" },
-                { code: "DB", name: "Devin Beltz", role: "WS", color: "db" },
-                { code: "LV", name: "Lauren Vaught", role: "WS", color: "lv" },
-                { code: "JS", name: "Jessica Peres", role: "WS", color: "js" },
-                { code: "SB", name: "Sarah Bedel", role: "WS", color: "sb" },
-                { code: "JM", name: "Jacob Mills", role: "WS", color: "jm" },
-                { code: "SC", name: "Scottie Burgess", role: "WS", color: "sc" }
-            );
+            const savedPeople = localStorage.getItem('studentWorkerPeople');
+            if (savedPeople) {
+                try {
+                    const savedPeopleData = JSON.parse(savedPeople);
+                    savedPeopleData.forEach(person => people.push(person));
+                } catch (e) {
+                    console.error('Failed to parse saved people list', e);
+                }
+            }
+
+            // Fall back to default people array if nothing was loaded
+            if (people.length === 0) {
+                people.push(
+                    { code: "KL", name: "Kiran Lutchman", role: "PA", color: "kl" },
+                    { code: "CJ", name: "Calcea Johnson", role: "PA", color: "cj" },
+                    { code: "CF", name: "Colin Frey", role: "WS", color: "cf" },
+                    { code: "IR", name: "Ian Robertson", role: "WS", color: "ir" },
+                    { code: "HF", name: "Heidi Faustermann", role: "WS", color: "hf" },
+                    { code: "RD", name: "Rohan Durgam", role: "GA", color: "rd" },
+                    { code: "KO", name: "Kelvin O'Young", role: "WS", color: "ko" },
+                    { code: "MV", name: "Michael Vasquez", role: "WS", color: "mv" },
+                    { code: "DB", name: "Devin Beltz", role: "WS", color: "db" },
+                    { code: "LV", name: "Lauren Vaught", role: "WS", color: "lv" },
+                    { code: "JS", name: "Jessica Peres", role: "WS", color: "js" },
+                    { code: "SB", name: "Sarah Bedel", role: "WS", color: "sb" },
+                    { code: "JM", name: "Jacob Mills", role: "WS", color: "jm" },
+                    { code: "SC", name: "Scottie Burgess", role: "WS", color: "sc" }
+                );
+            }
             
             renderWeekGrid();
             renderTotalsTable();
