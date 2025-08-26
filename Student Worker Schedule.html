@@ -2,9 +2,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>STUDENT WORKER SCHEDULE | 2024-2025</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+            defer crossorigin="anonymous"
+            onload="console.log('jsPDF loaded')"
+            onerror="console.error('Failed to load jsPDF')"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"
+            defer crossorigin="anonymous"
+            onload="console.log('jsPDF Autotable loaded')"
+            onerror="console.error('Failed to load jsPDF Autotable')"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+            defer crossorigin="anonymous"
+            onload="console.log('html2canvas loaded')"
+            onerror="console.error('Failed to load html2canvas')"></script>
     <style>
         :root {
             --slot-h: 28px;
@@ -1585,224 +1594,159 @@
         }
 
         // PDF Export functionality
-        function exportToPDF() {
+        async function exportToPDF() {
             console.log('=== PDF EXPORT DEBUGGING START ===');
-            
-            // Debug: Check element selection
+
+            if (!window.jspdf || typeof html2canvas === 'undefined') {
+                alert('Required libraries failed to load. Please refresh the page.');
+                console.error('Library load check:', {
+                    jspdf: !!window.jspdf,
+                    html2canvas: typeof html2canvas !== 'undefined'
+                });
+                return;
+            }
+
             const header = document.querySelector('.header');
             const adminControls = document.querySelector('.admin-controls');
             const controls = document.querySelector('.controls');
             const scheduleGrid = document.querySelector('.schedule-grid');
             const totalsSection = document.querySelector('.totals-section');
-            
+
+            if (!header || !controls || !scheduleGrid || !totalsSection) {
+                alert('Cannot export schedule: missing required sections.');
+                console.error('Element existence check:', {
+                    header: !!header,
+                    controls: !!controls,
+                    scheduleGrid: !!scheduleGrid,
+                    totalsSection: !!totalsSection
+                });
+                return;
+            }
+
             console.log('Element selection results:');
             console.log('- Header found:', !!header, header ? header.textContent.trim() : 'NOT FOUND');
             console.log('- Admin controls found:', !!adminControls);
             console.log('- Controls found:', !!controls, controls ? controls.textContent.trim() : 'NOT FOUND');
             console.log('- Schedule grid found:', !!scheduleGrid);
             console.log('- Totals section found:', !!totalsSection);
-            
-            // Debug: Check what's in the controls section
-            if (controls) {
-                console.log('- Controls section contains:', controls.innerHTML.substring(0, 100) + '...');
-            }
 
-            // Store original styles to restore them later
             const originalAdminDisplay = adminControls.style.display;
             const originalControlsDisplay = controls.style.display;
             const originalTotalsDisplay = totalsSection.style.display;
-            
-            console.log('Original display values:');
-            console.log('- Admin controls display:', originalAdminDisplay);
-            console.log('- Controls display:', originalControlsDisplay);
 
-            // --- HIDE UNWANTED ELEMENTS & PREPARE FOR CAPTURE ---
             adminControls.style.display = 'none';
             controls.style.display = 'none';
-            
-            console.log('Elements hidden. Display values after hiding:');
-            console.log('- Admin controls display:', adminControls.style.display);
-            console.log('- Controls display:', controls.style.display);
 
-            // Create a container for the header and schedule grid
-            const scheduleContainer = document.createElement('div');
-            scheduleContainer.style.width = '1400px'; // Increased width to prevent cutoff
-            scheduleContainer.style.padding = '0';
-            scheduleContainer.style.backgroundColor = 'white';
-            scheduleContainer.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
-            
-            console.log('Schedule container created with width:', scheduleContainer.style.width);
-            
-            // Clone and add header
-            const headerClone = header.cloneNode(true);
-            headerClone.style.margin = '0';
-            headerClone.style.borderRadius = '0';
-            headerClone.style.padding = '20px 40px'; // Add horizontal padding for margin effect
-            scheduleContainer.appendChild(headerClone);
-            
-            console.log('Header cloned and added. Header clone content:', headerClone.textContent.trim());
-            console.log('Header clone styles:', {
-                margin: headerClone.style.margin,
-                borderRadius: headerClone.style.borderRadius,
-                display: headerClone.style.display,
-                visibility: headerClone.style.visibility
-            });
-            
-            // Clone and add schedule grid
-            const scheduleGridClone = scheduleGrid.cloneNode(true);
-            scheduleGridClone.style.padding = '20px';
-            scheduleGridClone.style.margin = '0';
-            scheduleContainer.appendChild(scheduleGridClone);
-            
-            // Add padding to the entire schedule container to match the web version
-            scheduleContainer.style.padding = '0 20px';
-            
-            console.log('Schedule grid cloned and added. Container now has', scheduleContainer.children.length, 'children');
-            
-            document.body.appendChild(scheduleContainer);
-            console.log('Schedule container added to body. Container dimensions:', {
-                width: scheduleContainer.offsetWidth,
-                height: scheduleContainer.offsetHeight,
-                scrollWidth: scheduleContainer.scrollWidth,
-                scrollHeight: scheduleContainer.scrollHeight
-            });
+            let scheduleContainer;
+            let totalsContainer;
 
-            // Create a container for just the totals section
-            const totalsContainer = document.createElement('div');
-            totalsContainer.style.width = '1400px'; // Increased width to prevent cutoff
-            totalsContainer.style.padding = '20px';
-            totalsContainer.style.backgroundColor = 'white';
-            totalsContainer.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
-            
-            // Add consistent padding to match the web version
-            totalsContainer.style.padding = '20px';
-            
-            console.log('Totals container created with width:', totalsContainer.style.width);
-            
-            // Clone and add header to totals page too
-            const headerClone2 = header.cloneNode(true);
-            headerClone2.style.margin = '0';
-            headerClone2.style.borderRadius = '0';
-            headerClone2.style.padding = '20px 40px'; // Add horizontal padding for margin effect
-            totalsContainer.appendChild(headerClone2);
-            
-            console.log('Second header cloned and added to totals container');
-            
-            // Clone and add totals section
-            const totalsSectionClone = totalsSection.cloneNode(true);
-            totalsSectionClone.style.margin = '0';
-            totalsSectionClone.style.borderTop = '3px solid #1e293b';
-            totalsSectionClone.style.paddingTop = '20px';
-            totalsContainer.appendChild(totalsSectionClone);
-            
-            console.log('Totals section cloned and added. Totals container now has', totalsContainer.children.length, 'children');
-            
-            document.body.appendChild(totalsContainer);
-            console.log('Totals container added to body. Container dimensions:', {
-                width: totalsContainer.offsetWidth,
-                height: totalsContainer.offsetHeight,
-                scrollWidth: totalsContainer.scrollWidth,
-                scrollHeight: totalsContainer.scrollHeight
-            });
+            try {
+                scheduleContainer = document.createElement('div');
+                scheduleContainer.style.width = '1400px';
+                scheduleContainer.style.padding = '0';
+                scheduleContainer.style.backgroundColor = 'white';
+                scheduleContainer.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
 
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('landscape', 'mm', [279.4, 215.9]); // US Letter landscape
+                const headerClone = header.cloneNode(true);
+                headerClone.style.margin = '0';
+                headerClone.style.borderRadius = '0';
+                headerClone.style.padding = '20px 40px';
+                scheduleContainer.appendChild(headerClone);
 
-            console.log('PDF document created. Page dimensions:', { width: 279.4, height: 215.9 });
-            console.log('About to capture schedule container with html2canvas...');
+                const scheduleGridClone = scheduleGrid.cloneNode(true);
+                scheduleGridClone.style.padding = '20px';
+                scheduleGridClone.style.margin = '0';
+                scheduleContainer.appendChild(scheduleGridClone);
+                scheduleContainer.style.padding = '0 20px';
+                document.body.appendChild(scheduleContainer);
 
-            // Capture and add schedule grid to page 1
-            html2canvas(scheduleContainer, {
-                scale: 1.0, // Reduced scale to prevent oversized canvas
-                useCORS: true,
-                logging: true, // Enable logging for debugging
-                width: 1400,
-                height: scheduleContainer.scrollHeight
-            }).then(canvas1 => {
+                totalsContainer = document.createElement('div');
+                totalsContainer.style.width = '1400px';
+                totalsContainer.style.padding = '20px';
+                totalsContainer.style.backgroundColor = 'white';
+                totalsContainer.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+
+                const headerClone2 = header.cloneNode(true);
+                headerClone2.style.margin = '0';
+                headerClone2.style.borderRadius = '0';
+                headerClone2.style.padding = '20px 40px';
+                totalsContainer.appendChild(headerClone2);
+
+                const totalsSectionClone = totalsSection.cloneNode(true);
+                totalsSectionClone.style.margin = '0';
+                totalsSectionClone.style.borderTop = '3px solid #1e293b';
+                totalsSectionClone.style.paddingTop = '20px';
+                totalsContainer.appendChild(totalsSectionClone);
+                document.body.appendChild(totalsContainer);
+
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('landscape', 'mm', [279.4, 215.9]);
+
+                console.log('About to capture schedule container with html2canvas...');
+                const canvas1 = await html2canvas(scheduleContainer, {
+                    scale: 1.0,
+                    useCORS: true,
+                    logging: true,
+                    width: 1400,
+                    height: scheduleContainer.scrollHeight
+                });
                 console.log('Schedule container captured successfully!');
-                console.log('Canvas 1 dimensions:', { width: canvas1.width, height: canvas1.height });
-                console.log('Canvas 1 aspect ratio:', canvas1.width / canvas1.height);
                 const imgData1 = canvas1.toDataURL('image/png');
-                
-                // Calculate dimensions for page 1
                 const canvasAspectRatio1 = canvas1.width / canvas1.height;
                 const pageAspectRatio = 279.4 / 215.9;
-                
                 let imgWidth1 = 279.4;
                 let imgHeight1 = 215.9;
-                
                 if (canvasAspectRatio1 > pageAspectRatio) {
                     imgHeight1 = 279.4 / canvasAspectRatio1;
                 } else {
                     imgWidth1 = 215.9 * canvasAspectRatio1;
                 }
-                
                 const x1 = (279.4 - imgWidth1) / 2;
                 const y1 = (215.9 - imgHeight1) / 2;
-                
                 doc.addImage(imgData1, 'PNG', x1, y1, imgWidth1, imgHeight1);
-                
-                // Add page 2 for totals
                 doc.addPage();
-                console.log('Page 2 added to PDF');
-                
-                // Capture and add totals table to page 2
+
                 console.log('About to capture totals container with html2canvas...');
-                return html2canvas(totalsContainer, {
-                    scale: 1.0, // Reduced scale to prevent oversized canvas
+                const canvas2 = await html2canvas(totalsContainer, {
+                    scale: 1.0,
                     useCORS: true,
-                    logging: true, // Enable logging for debugging
+                    logging: true,
                     width: 1400,
                     height: totalsContainer.scrollHeight
                 });
-            }).then(canvas2 => {
                 console.log('Totals container captured successfully!');
-                console.log('Canvas 2 dimensions:', { width: canvas2.width, height: canvas2.height });
-                console.log('Canvas 2 aspect ratio:', canvas2.width / canvas2.height);
-                
                 const imgData2 = canvas2.toDataURL('image/png');
-                
-                // Calculate dimensions for page 2
                 const canvasAspectRatio2 = canvas2.width / canvas2.height;
-                const pageAspectRatio = 279.4 / 215.9;
-                
                 let imgWidth2 = 279.4;
                 let imgHeight2 = 215.9;
-                
                 if (canvasAspectRatio2 > pageAspectRatio) {
                     imgHeight2 = 279.4 / canvasAspectRatio2;
                 } else {
                     imgWidth2 = 215.9 * canvasAspectRatio2;
                 }
-                
                 const x2 = (279.4 - imgWidth2) / 2;
                 const y2 = (215.9 - imgHeight2) / 2;
-                
-                console.log('Page 2 image positioning:', { x: x2, y: y2, width: imgWidth2, height: imgHeight2 });
-                
                 doc.addImage(imgData2, 'PNG', x2, y2, imgWidth2, imgHeight2);
-                
-                // Save the PDF
+
                 const fileName = `student_schedule_${new Date().toISOString().split('T')[0]}.pdf`;
                 console.log('Saving PDF with filename:', fileName);
                 doc.save(fileName);
-            }).finally(() => {
+            } catch (error) {
+                console.error('Error exporting PDF:', error);
+                alert('An error occurred while exporting the PDF: ' + error.message);
+            } finally {
                 console.log('=== PDF EXPORT CLEANUP ===');
-                
-                // --- RESTORE ORIGINAL STYLES ---
                 adminControls.style.display = originalAdminDisplay;
                 controls.style.display = originalControlsDisplay;
                 totalsSection.style.display = originalTotalsDisplay;
-                
-                console.log('Original styles restored');
-                
-                // Clean up temporary containers
-                document.body.removeChild(scheduleContainer);
-                document.body.removeChild(totalsContainer);
-                
-                console.log('Temporary containers removed');
+                if (scheduleContainer && scheduleContainer.parentNode) {
+                    document.body.removeChild(scheduleContainer);
+                }
+                if (totalsContainer && totalsContainer.parentNode) {
+                    document.body.removeChild(totalsContainer);
+                }
                 console.log('=== PDF EXPORT DEBUGGING COMPLETE ===');
-            });
+            }
         }
 
         // Modal functions
