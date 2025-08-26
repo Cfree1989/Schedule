@@ -931,28 +931,36 @@
             
             console.log('Capturing current assignments from DOM...');
             
+            // Build a set of all person codes from both the people array and existing schedule keys
+            const personCodes = new Set(people.map(p => p.code));
+            Object.keys(schedule).forEach(key => {
+                const parts = key.split('-');
+                personCodes.add(parts[parts.length - 1]);
+            });
+
             days.forEach(day => {
                 timeSlots.forEach(slot => {
-                    people.forEach(person => {
-                        const cellId = `${day}-${slot}-${person.code}`;
-                        const cell = document.querySelector(`[data-day="${day}"][data-slot="${slot}"][data-person="${person.code}"]`);
-                        
+                    personCodes.forEach(code => {
+                        const cellId = `${day}-${slot}-${code}`;
+                        const cell = document.querySelector(`[data-day="${day}"][data-slot="${slot}"][data-person="${code}"]`);
+
                         if (cell) {
                             // Check if cell has the person's color class (indicating scheduled)
-                            const isScheduled = cell.classList.contains(person.color);
+                            const person = people.find(p => p.code === code);
+                            const isScheduled = person ? cell.classList.contains(person.color) : false;
                             domState[cellId] = isScheduled;
-                            
+
                             // Additional verification: check for any color class
-                            const hasAnyColor = Array.from(cell.classList).some(cls => 
+                            const hasAnyColor = Array.from(cell.classList).some(cls =>
                                 people.some(p => p.color === cls)
                             );
-                            
+
                             // Log any inconsistencies for debugging
                             if (isScheduled && !hasAnyColor) {
                                 captureErrors.push(`Inconsistent state for ${cellId}: marked as scheduled but no color class found`);
                             }
                         } else {
-                            // Cell not found - this shouldn't happen but handle gracefully
+                            // Cell not found - this can happen for students not in the current people list
                             captureErrors.push(`Cell not found for ${cellId}`);
                             domState[cellId] = false; // Default to unscheduled
                         }
@@ -978,88 +986,68 @@
         function restoreAssignments() {
             // Restore schedule assignments from hybrid data with intelligent fallback
             console.log('Restoring assignments from hybrid data...');
-            
+
             let restoredCount = 0;
             let fallbackUsed = false;
-            
+
+            // Always start with a clean schedule so stale keys are removed
+            schedule = {};
+
+            const applyAssignments = (source) => {
+                Object.entries(source).forEach(([key, value]) => {
+                    if (value) {
+                        schedule[key] = true;
+                        restoredCount++;
+                    }
+                });
+            };
+
             try {
                 // First, try to restore from tracked state (most reliable)
                 if (hybridData.trackedState && Object.keys(hybridData.trackedState).length > 0) {
                     console.log('Restoring from tracked state...');
-                    
-                    Object.keys(hybridData.trackedState).forEach(key => {
-                        if (hybridData.trackedState[key]) {
-                            schedule[key] = true;
-                            restoredCount++;
-                        }
-                    });
-                    
+                    applyAssignments(hybridData.trackedState);
                     console.log(`Restored ${restoredCount} assignments from tracked state`);
                     return restoredCount;
                 }
-                
+
                 // Fallback to DOM verification if tracked state is empty
                 if (hybridData.domVerification && hybridData.domVerification.assignments) {
                     console.log('Falling back to DOM verification data...');
                     fallbackUsed = true;
-                    
-                    Object.keys(hybridData.domVerification.assignments).forEach(key => {
-                        if (hybridData.domVerification.assignments[key]) {
-                            schedule[key] = true;
-                            restoredCount++;
-                        }
-                    });
-                    
+                    applyAssignments(hybridData.domVerification.assignments);
                     console.log(`Restored ${restoredCount} assignments from DOM verification (fallback)`);
                     return restoredCount;
                 }
-                
+
                 // Final fallback to legacy localStorage format
                 const legacyData = localStorage.getItem('studentWorkerSchedule');
                 if (legacyData) {
                     console.log('Falling back to legacy localStorage data...');
                     fallbackUsed = true;
-                    
+
                     try {
                         const legacySchedule = JSON.parse(legacyData);
-                        Object.keys(legacySchedule).forEach(key => {
-                            if (legacySchedule[key]) {
-                                schedule[key] = true;
-                                restoredCount++;
-                            }
-                        });
-                        
+                        applyAssignments(legacySchedule);
                         console.log(`Restored ${restoredCount} assignments from legacy data (fallback)`);
                         return restoredCount;
                     } catch (parseError) {
                         console.error('Error parsing legacy data:', parseError);
                     }
                 }
-                
+
                 // No data available, use sample data
                 console.log('No saved data found, using sample schedule...');
-                Object.keys(sampleSchedule).forEach(key => {
-                    if (sampleSchedule[key]) {
-                        schedule[key] = true;
-                        restoredCount++;
-                    }
-                });
-                
+                applyAssignments(sampleSchedule);
                 console.log(`Restored ${restoredCount} assignments from sample data (default)`);
                 return restoredCount;
-                
+
             } catch (error) {
                 console.error('Error during assignment restoration:', error);
-                
+
                 // Emergency fallback to sample data
                 console.log('Emergency fallback to sample data...');
-                Object.keys(sampleSchedule).forEach(key => {
-                    if (sampleSchedule[key]) {
-                        schedule[key] = true;
-                        restoredCount++;
-                    }
-                });
-                
+                applyAssignments(sampleSchedule);
                 return restoredCount;
             }
         }
@@ -1458,10 +1446,30 @@
                         delete schedule[key];
                     }
                 });
-                
+
+                // Clean up any tracked or captured data for this student
+                if (hybridData.trackedState) {
+                    Object.keys(hybridData.trackedState).forEach(key => {
+                        if (key.includes(`-${studentCode}`)) {
+                            delete hybridData.trackedState[key];
+                        }
+                    });
+                }
+                if (hybridData.domVerification && hybridData.domVerification.assignments) {
+                    Object.keys(hybridData.domVerification.assignments).forEach(key => {
+                        if (key.includes(`-${studentCode}`)) {
+                            delete hybridData.domVerification.assignments[key];
+                        }
+                    });
+                }
+
                 // Remove student from people array
                 people.splice(index, 1);
-                
+
+                // Update state tracking to reflect the removal
+                updateTrackedState();
+                captureCurrentAssignments();
+
                 // Re-render everything
                 renderWeekGrid();
                 renderTotalsTable();
