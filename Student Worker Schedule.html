@@ -1,0 +1,1634 @@
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STUDENT WORKER SCHEDULE | 2024-2025</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --slot-h: 28px;
+            --time-w: 80px;
+            --day-separator: 3px;
+            --max-students-per-row: 16;
+            
+            /* Beautiful earth-toned color palette - 18 distinct, sophisticated colors */
+            /* Each color is carefully chosen for distinction and professional appeal */
+            --c-kl: hsl(15, 65%, 45%);    /* Terracotta */
+            --c-cj: hsl(35, 70%, 50%);    /* Burnt Orange */
+            --c-cf: hsl(55, 75%, 55%);    /* Golden Amber */
+            --c-ir: hsl(85, 60%, 45%);    /* Sage Green */
+            --c-hf: hsl(120, 55%, 40%);   /* Forest Green */
+            --c-rd: hsl(200, 65%, 50%);   /* Ocean Blue */
+            --c-ko: hsl(180, 60%, 45%);   /* Teal */
+            --c-mv: hsl(280, 50%, 50%);   /* Lavender */
+            --c-db: hsl(320, 55%, 55%);   /* Rose */
+            --c-lv: hsl(25, 75%, 50%);    /* Rust */
+            --c-js: hsl(75, 65%, 50%);    /* Olive */
+            --c-sb: hsl(160, 60%, 45%);   /* Sea Green */
+            --c-jm: hsl(220, 70%, 45%);   /* Navy */
+            --c-sc: hsl(340, 60%, 50%);   /* Burgundy */
+            
+            /* Additional earth tones for extended palette */
+            --c-15: hsl(45, 70%, 45%);    /* Mustard */
+            --c-16: hsl(95, 55%, 40%);    /* Moss */
+            --c-17: hsl(140, 65%, 35%);   /* Pine */
+            --c-18: hsl(190, 60%, 40%);   /* Steel Blue */
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8fafc;
+            padding: 20px;
+            font-size: 12px;
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #1e293b;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .controls {
+            padding: 15px;
+            background: #f1f5f9;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .controls input {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background: #2563eb;
+        }
+
+        .admin-controls {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+        }
+
+        .admin-btn {
+            padding: 6px 12px;
+            background: #6b7280;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            font-size: 11px;
+            cursor: pointer;
+            margin: 0 5px;
+        }
+
+        .admin-btn:hover {
+            background: #4b5563;
+        }
+
+        .admin-btn.save {
+            background: #10b981;
+        }
+
+        .admin-btn.save:hover {
+            background: #059669;
+        }
+
+        .admin-btn.load {
+            background: #f59e0b;
+        }
+
+        .admin-btn.load:hover {
+            background: #d97706;
+        }
+
+        .admin-btn.clear {
+            background: #ef4444;
+        }
+
+        .admin-btn.clear:hover {
+            background: #dc2626;
+        }
+
+        .admin-btn.export {
+            background: #3b82f6;
+        }
+
+        .admin-btn.export:hover {
+            background: #2563eb;
+        }
+
+        .schedule-container {
+            overflow-x: auto;
+            padding: 20px;
+            width: 100%;
+            background-color: #c4c8cc;
+        }
+
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: var(--time-w) 1fr var(--time-w);
+            gap: 0;
+            min-width: 1200px;
+            max-width: none;
+            overflow-x: auto;
+            width: 100%;
+        }
+
+        .time-gutter {
+            display: grid;
+            grid-template-rows: repeat(18, var(--slot-h));
+            gap: 0;
+            border: 1px solid #1e293b;
+            background-color: #c4c8cc;
+        }
+
+        .time-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            font-size: 12px;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        .week-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0;
+            width: 100%;
+            min-width: 0;
+            overflow-x: auto;
+            border-left: 2px solid #1e293b;
+            background-color: #1e293b; /* Match border color to hide sub-pixel gaps */
+        }
+
+        .day-block {
+            display: grid;
+            grid-template-rows: var(--slot-h) var(--slot-h) repeat(16, var(--slot-h));
+            gap: 0;
+            border: 2px solid #1e293b;
+            border-left-width: 0;
+            min-width: 0;
+            background-color: white; /* Make day blocks opaque to hide parent background */
+        }
+
+        .day-header {
+            background: #1e293b;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            border-bottom: 1px solid #374151;
+        }
+
+        .legend-row {
+            display: grid;
+            gap: 0;
+        }
+
+        .legend-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #374151;
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            border-right: 1px solid #4b5563;
+        }
+
+        .legend-cell.kl { background: var(--c-kl); }
+        .legend-cell.cj { background: var(--c-cj); }
+        .legend-cell.cf { background: var(--c-cf); }
+        .legend-cell.ir { background: var(--c-ir); }
+        .legend-cell.hf { background: var(--c-hf); }
+        .legend-cell.rd { background: var(--c-rd); }
+        .legend-cell.ko { background: var(--c-ko); }
+        .legend-cell.mv { background: var(--c-mv); }
+        .legend-cell.db { background: var(--c-db); }
+        .legend-cell.lv { background: var(--c-lv); }
+        .legend-cell.js { background: var(--c-js); }
+        .legend-cell.sb { background: var(--c-sb); }
+        .legend-cell.jm { background: var(--c-jm); }
+        .legend-cell.sc { background: var(--c-sc); }
+        
+        /* Additional earth tones for extended palette */
+        .legend-cell.student-15 { background: var(--c-15); }
+        .legend-cell.student-16 { background: var(--c-16); }
+        .legend-cell.student-17 { background: var(--c-17); }
+        .legend-cell.student-18 { background: var(--c-18); }
+
+        .schedule-row {
+            display: grid;
+            gap: 0;
+        }
+
+        .schedule-cell {
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .schedule-cell:hover {
+            background: #f1f5f9;
+        }
+
+        .schedule-cell.kl { background: var(--c-kl); }
+        .schedule-cell.cj { background: var(--c-cj); }
+        .schedule-cell.cf { background: var(--c-cf); }
+        .schedule-cell.ir { background: var(--c-ir); }
+        .schedule-cell.hf { background: var(--c-hf); }
+        .schedule-cell.rd { background: var(--c-rd); }
+        .schedule-cell.ko { background: var(--c-ko); }
+        .schedule-cell.mv { background: var(--c-mv); }
+        .schedule-cell.db { background: var(--c-db); }
+        .schedule-cell.lv { background: var(--c-lv); }
+        .schedule-cell.js { background: var(--c-js); }
+        .schedule-cell.sb { background: var(--c-sb); }
+        .schedule-cell.jm { background: var(--c-jm); }
+        .schedule-cell.sc { background: var(--c-sc); }
+        
+        /* Additional earth tones for extended palette */
+        .schedule-cell.student-15 { background: var(--c-15); }
+        .schedule-cell.student-16 { background: var(--c-16); }
+        .schedule-cell.student-17 { background: var(--c-17); }
+        .schedule-cell.student-18 { background: var(--c-18); }
+
+        .totals-section {
+            margin-top: 30px;
+            border-top: 3px solid #1e293b;
+            padding-top: 20px;
+        }
+
+        .totals-title {
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #1e293b;
+        }
+
+        .totals-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            background-color: #ffffff;
+        }
+
+        .totals-table th {
+            background: #374151;
+            color: white;
+            padding: 10px 8px;
+            text-align: center;
+            font-weight: 600;
+            border: 1px solid #4b5563;
+        }
+
+        .totals-table th:first-child {
+            min-width: 80px;
+            max-width: 120px;
+        }
+
+        .totals-table td {
+            border: 1px solid #d1d5db;
+            padding: 8px;
+            text-align: center;
+        }
+
+        .student-name {
+            text-align: left;
+            padding-left: 8px;
+            background: #f9fafb;
+            font-weight: 600;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .total-cell {
+            background: #f3f4f6;
+            font-weight: bold;
+        }
+
+        .grand-total {
+            background: #1e293b;
+            color: white;
+            font-weight: bold;
+        }
+
+        .hours-input {
+            width: 50px;
+            padding: 4px;
+            border: 1px solid #d1d5db;
+            border-radius: 3px;
+            text-align: center;
+            font-size: 11px;
+        }
+
+        .role-requirements-section {
+            margin-top: 20px;
+            border-top: 2px solid #1e293b;
+            padding-top: 15px;
+        }
+
+        .role-requirements-grid {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            flex-wrap: wrap;
+        }
+
+        .role-requirement {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .role-label {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .role-hours {
+            color: #059669;
+            font-weight: 500;
+        }
+
+        @media (max-width: 1200px) {
+            .schedule-container {
+                overflow-x: auto;
+            }
+        }
+
+        /* Ensure time gutters stay visible */
+        .time-gutter {
+            position: sticky;
+            background: white;
+            z-index: 10;
+        }
+
+        .time-gutter:first-child {
+            left: 0;
+        }
+
+        .time-gutter:last-child {
+            right: 0;
+        }
+
+        /* Drag and drop styles */
+        .student-row {
+            transition: background-color 0.2s ease;
+            cursor: grab;
+        }
+
+        .student-row:hover {
+            background-color: #f8fafc;
+        }
+
+        .student-row:active {
+            cursor: grabbing;
+        }
+
+        .student-row.dragging {
+            opacity: 0.7;
+            background-color: #f1f5f9;
+            cursor: grabbing;
+        }
+
+        .student-row.drag-over {
+            background-color: #f8fafc;
+            border-top: 1px solid #d1d5db;
+        }
+
+        .student-name {
+            cursor: pointer;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 400px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1e293b;
+        }
+
+        .close {
+            color: #6b7280;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #374151;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .modal-body input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .modal-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .modal-btn.primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .modal-btn.primary:hover {
+            background: #2563eb;
+        }
+
+        .modal-btn.secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .modal-btn.secondary:hover {
+            background: #4b5563;
+        }
+
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>STUDENT WORKER SCHEDULE | 2024-2025</h1>
+        </div>
+
+        <div id="printableArea">
+            <div class="schedule-container">
+                <div class="schedule-grid">
+                    <!-- Left Time Gutter -->
+                    <div class="time-gutter">
+                        <div class="time-label"></div>
+                        <div class="time-label"></div>
+                        <div class="time-label">8:30-9:00</div>
+                        <div class="time-label">9:00-9:30</div>
+                        <div class="time-label">9:30-10:00</div>
+                        <div class="time-label">10:00-10:30</div>
+                        <div class="time-label">10:30-11:00</div>
+                        <div class="time-label">11:00-11:30</div>
+                        <div class="time-label">11:30-12:00</div>
+                        <div class="time-label">12:00-12:30</div>
+                        <div class="time-label">12:30-1:00</div>
+                        <div class="time-label">1:00-1:30</div>
+                        <div class="time-label">1:30-2:00</div>
+                        <div class="time-label">2:00-2:30</div>
+                        <div class="time-label">2:30-3:00</div>
+                        <div class="time-label">3:00-3:30</div>
+                        <div class="time-label">3:30-4:00</div>
+                        <div class="time-label">4:00-4:30</div>
+                    </div>
+
+                    <!-- Week Grid -->
+                    <div class="week-grid" id="weekGrid"><div class="day-block"><div class="day-header">MONDAY</div><div class="legend-row" style="grid-template-columns: repeat(14, 1fr);"><div class="legend-cell kl">KL</div><div class="legend-cell cj">CJ</div><div class="legend-cell cf">CF</div><div class="legend-cell ir">IR</div><div class="legend-cell hf">HF</div><div class="legend-cell rd">RD</div><div class="legend-cell ko">KO</div><div class="legend-cell mv">MV</div><div class="legend-cell db">DB</div><div class="legend-cell lv">LV</div><div class="legend-cell js">JS</div><div class="legend-cell sb">SB</div><div class="legend-cell jm">JM</div><div class="legend-cell sc">SC</div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="monday" data-slot="08:30-09:00" data-person="KL"></div><div class="schedule-cell" data-day="monday" data-slot="08:30-09:00" data-person="CJ"></div><div class="schedule-cell" data-day="monday" data-slot="08:30-09:00" data-person="CF"></div><div class="schedule-cell" data-day="monday" data-slot="08:30-09:00" data-person="IR"></div><div class="schedule-cell" data-day="monday" data-slot="08:30-09:00" data-person="HF"></div><div class="schedule-cell" data-day="monday" data-slot="08:30-09:00" data-person="RD"></div><div class="schedule-cell" data-day="monday" data-slot="08:30-09:00" data-person="KO"></div><div class="schedule-cell" data-day="monday" data-slot="08:30-09:00" data-person="MV"></div><div class="schedule-cell" data-day="monday" data-slot="08:30-09:00" data-person="DB"></div><div class="schedule-cell" data-day="monday" data-slot="08:30-09:00" data-person="LV"></div><div class="schedule-cell" data-day="monday" data-slot="08:30-09:00" data-person="JS"></div><div class="schedule-cell" data-day="monday" data-slot="08:30-09:00" data-person="SB"></div><div class="schedule-cell" data-day="monday" data-slot="08:30-09:00" data-person="JM"></div><div class="schedule-cell" data-day="monday" data-slot="08:30-09:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="monday" data-slot="09:00-09:30" data-person="KL"></div><div class="schedule-cell" data-day="monday" data-slot="09:00-09:30" data-person="CJ"></div><div class="schedule-cell" data-day="monday" data-slot="09:00-09:30" data-person="CF"></div><div class="schedule-cell" data-day="monday" data-slot="09:00-09:30" data-person="IR"></div><div class="schedule-cell" data-day="monday" data-slot="09:00-09:30" data-person="HF"></div><div class="schedule-cell" data-day="monday" data-slot="09:00-09:30" data-person="RD"></div><div class="schedule-cell" data-day="monday" data-slot="09:00-09:30" data-person="KO"></div><div class="schedule-cell" data-day="monday" data-slot="09:00-09:30" data-person="MV"></div><div class="schedule-cell" data-day="monday" data-slot="09:00-09:30" data-person="DB"></div><div class="schedule-cell" data-day="monday" data-slot="09:00-09:30" data-person="LV"></div><div class="schedule-cell" data-day="monday" data-slot="09:00-09:30" data-person="JS"></div><div class="schedule-cell" data-day="monday" data-slot="09:00-09:30" data-person="SB"></div><div class="schedule-cell" data-day="monday" data-slot="09:00-09:30" data-person="JM"></div><div class="schedule-cell" data-day="monday" data-slot="09:00-09:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="monday" data-slot="09:30-10:00" data-person="KL"></div><div class="schedule-cell" data-day="monday" data-slot="09:30-10:00" data-person="CJ"></div><div class="schedule-cell" data-day="monday" data-slot="09:30-10:00" data-person="CF"></div><div class="schedule-cell" data-day="monday" data-slot="09:30-10:00" data-person="IR"></div><div class="schedule-cell" data-day="monday" data-slot="09:30-10:00" data-person="HF"></div><div class="schedule-cell" data-day="monday" data-slot="09:30-10:00" data-person="RD"></div><div class="schedule-cell" data-day="monday" data-slot="09:30-10:00" data-person="KO"></div><div class="schedule-cell" data-day="monday" data-slot="09:30-10:00" data-person="MV"></div><div class="schedule-cell" data-day="monday" data-slot="09:30-10:00" data-person="DB"></div><div class="schedule-cell" data-day="monday" data-slot="09:30-10:00" data-person="LV"></div><div class="schedule-cell" data-day="monday" data-slot="09:30-10:00" data-person="JS"></div><div class="schedule-cell" data-day="monday" data-slot="09:30-10:00" data-person="SB"></div><div class="schedule-cell" data-day="monday" data-slot="09:30-10:00" data-person="JM"></div><div class="schedule-cell" data-day="monday" data-slot="09:30-10:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="monday" data-slot="10:00-10:30" data-person="KL"></div><div class="schedule-cell" data-day="monday" data-slot="10:00-10:30" data-person="CJ"></div><div class="schedule-cell" data-day="monday" data-slot="10:00-10:30" data-person="CF"></div><div class="schedule-cell" data-day="monday" data-slot="10:00-10:30" data-person="IR"></div><div class="schedule-cell" data-day="monday" data-slot="10:00-10:30" data-person="HF"></div><div class="schedule-cell" data-day="monday" data-slot="10:00-10:30" data-person="RD"></div><div class="schedule-cell" data-day="monday" data-slot="10:00-10:30" data-person="KO"></div><div class="schedule-cell" data-day="monday" data-slot="10:00-10:30" data-person="MV"></div><div class="schedule-cell" data-day="monday" data-slot="10:00-10:30" data-person="DB"></div><div class="schedule-cell" data-day="monday" data-slot="10:00-10:30" data-person="LV"></div><div class="schedule-cell" data-day="monday" data-slot="10:00-10:30" data-person="JS"></div><div class="schedule-cell" data-day="monday" data-slot="10:00-10:30" data-person="SB"></div><div class="schedule-cell" data-day="monday" data-slot="10:00-10:30" data-person="JM"></div><div class="schedule-cell" data-day="monday" data-slot="10:00-10:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="monday" data-slot="10:30-11:00" data-person="KL"></div><div class="schedule-cell" data-day="monday" data-slot="10:30-11:00" data-person="CJ"></div><div class="schedule-cell" data-day="monday" data-slot="10:30-11:00" data-person="CF"></div><div class="schedule-cell" data-day="monday" data-slot="10:30-11:00" data-person="IR"></div><div class="schedule-cell" data-day="monday" data-slot="10:30-11:00" data-person="HF"></div><div class="schedule-cell" data-day="monday" data-slot="10:30-11:00" data-person="RD"></div><div class="schedule-cell" data-day="monday" data-slot="10:30-11:00" data-person="KO"></div><div class="schedule-cell" data-day="monday" data-slot="10:30-11:00" data-person="MV"></div><div class="schedule-cell" data-day="monday" data-slot="10:30-11:00" data-person="DB"></div><div class="schedule-cell" data-day="monday" data-slot="10:30-11:00" data-person="LV"></div><div class="schedule-cell" data-day="monday" data-slot="10:30-11:00" data-person="JS"></div><div class="schedule-cell" data-day="monday" data-slot="10:30-11:00" data-person="SB"></div><div class="schedule-cell" data-day="monday" data-slot="10:30-11:00" data-person="JM"></div><div class="schedule-cell" data-day="monday" data-slot="10:30-11:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="monday" data-slot="11:00-11:30" data-person="KL"></div><div class="schedule-cell" data-day="monday" data-slot="11:00-11:30" data-person="CJ"></div><div class="schedule-cell" data-day="monday" data-slot="11:00-11:30" data-person="CF"></div><div class="schedule-cell" data-day="monday" data-slot="11:00-11:30" data-person="IR"></div><div class="schedule-cell" data-day="monday" data-slot="11:00-11:30" data-person="HF"></div><div class="schedule-cell" data-day="monday" data-slot="11:00-11:30" data-person="RD"></div><div class="schedule-cell" data-day="monday" data-slot="11:00-11:30" data-person="KO"></div><div class="schedule-cell" data-day="monday" data-slot="11:00-11:30" data-person="MV"></div><div class="schedule-cell" data-day="monday" data-slot="11:00-11:30" data-person="DB"></div><div class="schedule-cell" data-day="monday" data-slot="11:00-11:30" data-person="LV"></div><div class="schedule-cell" data-day="monday" data-slot="11:00-11:30" data-person="JS"></div><div class="schedule-cell" data-day="monday" data-slot="11:00-11:30" data-person="SB"></div><div class="schedule-cell" data-day="monday" data-slot="11:00-11:30" data-person="JM"></div><div class="schedule-cell" data-day="monday" data-slot="11:00-11:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="monday" data-slot="11:30-12:00" data-person="KL"></div><div class="schedule-cell" data-day="monday" data-slot="11:30-12:00" data-person="CJ"></div><div class="schedule-cell" data-day="monday" data-slot="11:30-12:00" data-person="CF"></div><div class="schedule-cell" data-day="monday" data-slot="11:30-12:00" data-person="IR"></div><div class="schedule-cell" data-day="monday" data-slot="11:30-12:00" data-person="HF"></div><div class="schedule-cell" data-day="monday" data-slot="11:30-12:00" data-person="RD"></div><div class="schedule-cell" data-day="monday" data-slot="11:30-12:00" data-person="KO"></div><div class="schedule-cell" data-day="monday" data-slot="11:30-12:00" data-person="MV"></div><div class="schedule-cell" data-day="monday" data-slot="11:30-12:00" data-person="DB"></div><div class="schedule-cell" data-day="monday" data-slot="11:30-12:00" data-person="LV"></div><div class="schedule-cell" data-day="monday" data-slot="11:30-12:00" data-person="JS"></div><div class="schedule-cell" data-day="monday" data-slot="11:30-12:00" data-person="SB"></div><div class="schedule-cell" data-day="monday" data-slot="11:30-12:00" data-person="JM"></div><div class="schedule-cell" data-day="monday" data-slot="11:30-12:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="monday" data-slot="12:00-12:30" data-person="KL"></div><div class="schedule-cell" data-day="monday" data-slot="12:00-12:30" data-person="CJ"></div><div class="schedule-cell" data-day="monday" data-slot="12:00-12:30" data-person="CF"></div><div class="schedule-cell" data-day="monday" data-slot="12:00-12:30" data-person="IR"></div><div class="schedule-cell" data-day="monday" data-slot="12:00-12:30" data-person="HF"></div><div class="schedule-cell" data-day="monday" data-slot="12:00-12:30" data-person="RD"></div><div class="schedule-cell" data-day="monday" data-slot="12:00-12:30" data-person="KO"></div><div class="schedule-cell" data-day="monday" data-slot="12:00-12:30" data-person="MV"></div><div class="schedule-cell" data-day="monday" data-slot="12:00-12:30" data-person="DB"></div><div class="schedule-cell" data-day="monday" data-slot="12:00-12:30" data-person="LV"></div><div class="schedule-cell" data-day="monday" data-slot="12:00-12:30" data-person="JS"></div><div class="schedule-cell" data-day="monday" data-slot="12:00-12:30" data-person="SB"></div><div class="schedule-cell" data-day="monday" data-slot="12:00-12:30" data-person="JM"></div><div class="schedule-cell" data-day="monday" data-slot="12:00-12:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="monday" data-slot="12:30-13:00" data-person="KL"></div><div class="schedule-cell" data-day="monday" data-slot="12:30-13:00" data-person="CJ"></div><div class="schedule-cell" data-day="monday" data-slot="12:30-13:00" data-person="CF"></div><div class="schedule-cell" data-day="monday" data-slot="12:30-13:00" data-person="IR"></div><div class="schedule-cell" data-day="monday" data-slot="12:30-13:00" data-person="HF"></div><div class="schedule-cell" data-day="monday" data-slot="12:30-13:00" data-person="RD"></div><div class="schedule-cell" data-day="monday" data-slot="12:30-13:00" data-person="KO"></div><div class="schedule-cell" data-day="monday" data-slot="12:30-13:00" data-person="MV"></div><div class="schedule-cell" data-day="monday" data-slot="12:30-13:00" data-person="DB"></div><div class="schedule-cell" data-day="monday" data-slot="12:30-13:00" data-person="LV"></div><div class="schedule-cell" data-day="monday" data-slot="12:30-13:00" data-person="JS"></div><div class="schedule-cell" data-day="monday" data-slot="12:30-13:00" data-person="SB"></div><div class="schedule-cell" data-day="monday" data-slot="12:30-13:00" data-person="JM"></div><div class="schedule-cell" data-day="monday" data-slot="12:30-13:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="monday" data-slot="13:00-13:30" data-person="KL"></div><div class="schedule-cell" data-day="monday" data-slot="13:00-13:30" data-person="CJ"></div><div class="schedule-cell" data-day="monday" data-slot="13:00-13:30" data-person="CF"></div><div class="schedule-cell" data-day="monday" data-slot="13:00-13:30" data-person="IR"></div><div class="schedule-cell" data-day="monday" data-slot="13:00-13:30" data-person="HF"></div><div class="schedule-cell" data-day="monday" data-slot="13:00-13:30" data-person="RD"></div><div class="schedule-cell" data-day="monday" data-slot="13:00-13:30" data-person="KO"></div><div class="schedule-cell" data-day="monday" data-slot="13:00-13:30" data-person="MV"></div><div class="schedule-cell" data-day="monday" data-slot="13:00-13:30" data-person="DB"></div><div class="schedule-cell" data-day="monday" data-slot="13:00-13:30" data-person="LV"></div><div class="schedule-cell" data-day="monday" data-slot="13:00-13:30" data-person="JS"></div><div class="schedule-cell" data-day="monday" data-slot="13:00-13:30" data-person="SB"></div><div class="schedule-cell" data-day="monday" data-slot="13:00-13:30" data-person="JM"></div><div class="schedule-cell" data-day="monday" data-slot="13:00-13:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="monday" data-slot="13:30-14:00" data-person="KL"></div><div class="schedule-cell" data-day="monday" data-slot="13:30-14:00" data-person="CJ"></div><div class="schedule-cell" data-day="monday" data-slot="13:30-14:00" data-person="CF"></div><div class="schedule-cell" data-day="monday" data-slot="13:30-14:00" data-person="IR"></div><div class="schedule-cell" data-day="monday" data-slot="13:30-14:00" data-person="HF"></div><div class="schedule-cell" data-day="monday" data-slot="13:30-14:00" data-person="RD"></div><div class="schedule-cell" data-day="monday" data-slot="13:30-14:00" data-person="KO"></div><div class="schedule-cell" data-day="monday" data-slot="13:30-14:00" data-person="MV"></div><div class="schedule-cell" data-day="monday" data-slot="13:30-14:00" data-person="DB"></div><div class="schedule-cell" data-day="monday" data-slot="13:30-14:00" data-person="LV"></div><div class="schedule-cell" data-day="monday" data-slot="13:30-14:00" data-person="JS"></div><div class="schedule-cell" data-day="monday" data-slot="13:30-14:00" data-person="SB"></div><div class="schedule-cell" data-day="monday" data-slot="13:30-14:00" data-person="JM"></div><div class="schedule-cell" data-day="monday" data-slot="13:30-14:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="monday" data-slot="14:00-14:30" data-person="KL"></div><div class="schedule-cell" data-day="monday" data-slot="14:00-14:30" data-person="CJ"></div><div class="schedule-cell" data-day="monday" data-slot="14:00-14:30" data-person="CF"></div><div class="schedule-cell" data-day="monday" data-slot="14:00-14:30" data-person="IR"></div><div class="schedule-cell" data-day="monday" data-slot="14:00-14:30" data-person="HF"></div><div class="schedule-cell" data-day="monday" data-slot="14:00-14:30" data-person="RD"></div><div class="schedule-cell" data-day="monday" data-slot="14:00-14:30" data-person="KO"></div><div class="schedule-cell" data-day="monday" data-slot="14:00-14:30" data-person="MV"></div><div class="schedule-cell" data-day="monday" data-slot="14:00-14:30" data-person="DB"></div><div class="schedule-cell" data-day="monday" data-slot="14:00-14:30" data-person="LV"></div><div class="schedule-cell" data-day="monday" data-slot="14:00-14:30" data-person="JS"></div><div class="schedule-cell" data-day="monday" data-slot="14:00-14:30" data-person="SB"></div><div class="schedule-cell" data-day="monday" data-slot="14:00-14:30" data-person="JM"></div><div class="schedule-cell" data-day="monday" data-slot="14:00-14:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="monday" data-slot="14:30-15:00" data-person="KL"></div><div class="schedule-cell" data-day="monday" data-slot="14:30-15:00" data-person="CJ"></div><div class="schedule-cell" data-day="monday" data-slot="14:30-15:00" data-person="CF"></div><div class="schedule-cell" data-day="monday" data-slot="14:30-15:00" data-person="IR"></div><div class="schedule-cell" data-day="monday" data-slot="14:30-15:00" data-person="HF"></div><div class="schedule-cell" data-day="monday" data-slot="14:30-15:00" data-person="RD"></div><div class="schedule-cell" data-day="monday" data-slot="14:30-15:00" data-person="KO"></div><div class="schedule-cell" data-day="monday" data-slot="14:30-15:00" data-person="MV"></div><div class="schedule-cell" data-day="monday" data-slot="14:30-15:00" data-person="DB"></div><div class="schedule-cell" data-day="monday" data-slot="14:30-15:00" data-person="LV"></div><div class="schedule-cell" data-day="monday" data-slot="14:30-15:00" data-person="JS"></div><div class="schedule-cell" data-day="monday" data-slot="14:30-15:00" data-person="SB"></div><div class="schedule-cell" data-day="monday" data-slot="14:30-15:00" data-person="JM"></div><div class="schedule-cell" data-day="monday" data-slot="14:30-15:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="monday" data-slot="15:00-15:30" data-person="KL"></div><div class="schedule-cell" data-day="monday" data-slot="15:00-15:30" data-person="CJ"></div><div class="schedule-cell" data-day="monday" data-slot="15:00-15:30" data-person="CF"></div><div class="schedule-cell" data-day="monday" data-slot="15:00-15:30" data-person="IR"></div><div class="schedule-cell" data-day="monday" data-slot="15:00-15:30" data-person="HF"></div><div class="schedule-cell" data-day="monday" data-slot="15:00-15:30" data-person="RD"></div><div class="schedule-cell" data-day="monday" data-slot="15:00-15:30" data-person="KO"></div><div class="schedule-cell" data-day="monday" data-slot="15:00-15:30" data-person="MV"></div><div class="schedule-cell" data-day="monday" data-slot="15:00-15:30" data-person="DB"></div><div class="schedule-cell" data-day="monday" data-slot="15:00-15:30" data-person="LV"></div><div class="schedule-cell" data-day="monday" data-slot="15:00-15:30" data-person="JS"></div><div class="schedule-cell" data-day="monday" data-slot="15:00-15:30" data-person="SB"></div><div class="schedule-cell" data-day="monday" data-slot="15:00-15:30" data-person="JM"></div><div class="schedule-cell" data-day="monday" data-slot="15:00-15:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="monday" data-slot="15:30-16:00" data-person="KL"></div><div class="schedule-cell" data-day="monday" data-slot="15:30-16:00" data-person="CJ"></div><div class="schedule-cell" data-day="monday" data-slot="15:30-16:00" data-person="CF"></div><div class="schedule-cell" data-day="monday" data-slot="15:30-16:00" data-person="IR"></div><div class="schedule-cell" data-day="monday" data-slot="15:30-16:00" data-person="HF"></div><div class="schedule-cell" data-day="monday" data-slot="15:30-16:00" data-person="RD"></div><div class="schedule-cell" data-day="monday" data-slot="15:30-16:00" data-person="KO"></div><div class="schedule-cell" data-day="monday" data-slot="15:30-16:00" data-person="MV"></div><div class="schedule-cell" data-day="monday" data-slot="15:30-16:00" data-person="DB"></div><div class="schedule-cell" data-day="monday" data-slot="15:30-16:00" data-person="LV"></div><div class="schedule-cell" data-day="monday" data-slot="15:30-16:00" data-person="JS"></div><div class="schedule-cell" data-day="monday" data-slot="15:30-16:00" data-person="SB"></div><div class="schedule-cell" data-day="monday" data-slot="15:30-16:00" data-person="JM"></div><div class="schedule-cell" data-day="monday" data-slot="15:30-16:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="monday" data-slot="16:00-16:30" data-person="KL"></div><div class="schedule-cell" data-day="monday" data-slot="16:00-16:30" data-person="CJ"></div><div class="schedule-cell" data-day="monday" data-slot="16:00-16:30" data-person="CF"></div><div class="schedule-cell" data-day="monday" data-slot="16:00-16:30" data-person="IR"></div><div class="schedule-cell" data-day="monday" data-slot="16:00-16:30" data-person="HF"></div><div class="schedule-cell" data-day="monday" data-slot="16:00-16:30" data-person="RD"></div><div class="schedule-cell" data-day="monday" data-slot="16:00-16:30" data-person="KO"></div><div class="schedule-cell" data-day="monday" data-slot="16:00-16:30" data-person="MV"></div><div class="schedule-cell" data-day="monday" data-slot="16:00-16:30" data-person="DB"></div><div class="schedule-cell" data-day="monday" data-slot="16:00-16:30" data-person="LV"></div><div class="schedule-cell" data-day="monday" data-slot="16:00-16:30" data-person="JS"></div><div class="schedule-cell" data-day="monday" data-slot="16:00-16:30" data-person="SB"></div><div class="schedule-cell" data-day="monday" data-slot="16:00-16:30" data-person="JM"></div><div class="schedule-cell" data-day="monday" data-slot="16:00-16:30" data-person="SC"></div></div></div><div class="day-block"><div class="day-header">TUESDAY</div><div class="legend-row" style="grid-template-columns: repeat(14, 1fr);"><div class="legend-cell kl">KL</div><div class="legend-cell cj">CJ</div><div class="legend-cell cf">CF</div><div class="legend-cell ir">IR</div><div class="legend-cell hf">HF</div><div class="legend-cell rd">RD</div><div class="legend-cell ko">KO</div><div class="legend-cell mv">MV</div><div class="legend-cell db">DB</div><div class="legend-cell lv">LV</div><div class="legend-cell js">JS</div><div class="legend-cell sb">SB</div><div class="legend-cell jm">JM</div><div class="legend-cell sc">SC</div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="tuesday" data-slot="08:30-09:00" data-person="KL"></div><div class="schedule-cell" data-day="tuesday" data-slot="08:30-09:00" data-person="CJ"></div><div class="schedule-cell" data-day="tuesday" data-slot="08:30-09:00" data-person="CF"></div><div class="schedule-cell" data-day="tuesday" data-slot="08:30-09:00" data-person="IR"></div><div class="schedule-cell" data-day="tuesday" data-slot="08:30-09:00" data-person="HF"></div><div class="schedule-cell" data-day="tuesday" data-slot="08:30-09:00" data-person="RD"></div><div class="schedule-cell" data-day="tuesday" data-slot="08:30-09:00" data-person="KO"></div><div class="schedule-cell" data-day="tuesday" data-slot="08:30-09:00" data-person="MV"></div><div class="schedule-cell" data-day="tuesday" data-slot="08:30-09:00" data-person="DB"></div><div class="schedule-cell" data-day="tuesday" data-slot="08:30-09:00" data-person="LV"></div><div class="schedule-cell" data-day="tuesday" data-slot="08:30-09:00" data-person="JS"></div><div class="schedule-cell" data-day="tuesday" data-slot="08:30-09:00" data-person="SB"></div><div class="schedule-cell" data-day="tuesday" data-slot="08:30-09:00" data-person="JM"></div><div class="schedule-cell" data-day="tuesday" data-slot="08:30-09:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="tuesday" data-slot="09:00-09:30" data-person="KL"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:00-09:30" data-person="CJ"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:00-09:30" data-person="CF"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:00-09:30" data-person="IR"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:00-09:30" data-person="HF"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:00-09:30" data-person="RD"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:00-09:30" data-person="KO"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:00-09:30" data-person="MV"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:00-09:30" data-person="DB"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:00-09:30" data-person="LV"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:00-09:30" data-person="JS"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:00-09:30" data-person="SB"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:00-09:30" data-person="JM"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:00-09:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="tuesday" data-slot="09:30-10:00" data-person="KL"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:30-10:00" data-person="CJ"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:30-10:00" data-person="CF"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:30-10:00" data-person="IR"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:30-10:00" data-person="HF"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:30-10:00" data-person="RD"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:30-10:00" data-person="KO"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:30-10:00" data-person="MV"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:30-10:00" data-person="DB"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:30-10:00" data-person="LV"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:30-10:00" data-person="JS"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:30-10:00" data-person="SB"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:30-10:00" data-person="JM"></div><div class="schedule-cell" data-day="tuesday" data-slot="09:30-10:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="tuesday" data-slot="10:00-10:30" data-person="KL"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:00-10:30" data-person="CJ"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:00-10:30" data-person="CF"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:00-10:30" data-person="IR"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:00-10:30" data-person="HF"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:00-10:30" data-person="RD"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:00-10:30" data-person="KO"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:00-10:30" data-person="MV"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:00-10:30" data-person="DB"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:00-10:30" data-person="LV"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:00-10:30" data-person="JS"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:00-10:30" data-person="SB"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:00-10:30" data-person="JM"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:00-10:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="tuesday" data-slot="10:30-11:00" data-person="KL"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:30-11:00" data-person="CJ"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:30-11:00" data-person="CF"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:30-11:00" data-person="IR"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:30-11:00" data-person="HF"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:30-11:00" data-person="RD"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:30-11:00" data-person="KO"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:30-11:00" data-person="MV"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:30-11:00" data-person="DB"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:30-11:00" data-person="LV"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:30-11:00" data-person="JS"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:30-11:00" data-person="SB"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:30-11:00" data-person="JM"></div><div class="schedule-cell" data-day="tuesday" data-slot="10:30-11:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="tuesday" data-slot="11:00-11:30" data-person="KL"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:00-11:30" data-person="CJ"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:00-11:30" data-person="CF"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:00-11:30" data-person="IR"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:00-11:30" data-person="HF"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:00-11:30" data-person="RD"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:00-11:30" data-person="KO"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:00-11:30" data-person="MV"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:00-11:30" data-person="DB"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:00-11:30" data-person="LV"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:00-11:30" data-person="JS"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:00-11:30" data-person="SB"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:00-11:30" data-person="JM"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:00-11:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="tuesday" data-slot="11:30-12:00" data-person="KL"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:30-12:00" data-person="CJ"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:30-12:00" data-person="CF"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:30-12:00" data-person="IR"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:30-12:00" data-person="HF"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:30-12:00" data-person="RD"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:30-12:00" data-person="KO"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:30-12:00" data-person="MV"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:30-12:00" data-person="DB"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:30-12:00" data-person="LV"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:30-12:00" data-person="JS"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:30-12:00" data-person="SB"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:30-12:00" data-person="JM"></div><div class="schedule-cell" data-day="tuesday" data-slot="11:30-12:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="tuesday" data-slot="12:00-12:30" data-person="KL"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:00-12:30" data-person="CJ"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:00-12:30" data-person="CF"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:00-12:30" data-person="IR"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:00-12:30" data-person="HF"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:00-12:30" data-person="RD"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:00-12:30" data-person="KO"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:00-12:30" data-person="MV"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:00-12:30" data-person="DB"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:00-12:30" data-person="LV"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:00-12:30" data-person="JS"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:00-12:30" data-person="SB"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:00-12:30" data-person="JM"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:00-12:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="tuesday" data-slot="12:30-13:00" data-person="KL"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:30-13:00" data-person="CJ"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:30-13:00" data-person="CF"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:30-13:00" data-person="IR"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:30-13:00" data-person="HF"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:30-13:00" data-person="RD"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:30-13:00" data-person="KO"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:30-13:00" data-person="MV"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:30-13:00" data-person="DB"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:30-13:00" data-person="LV"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:30-13:00" data-person="JS"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:30-13:00" data-person="SB"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:30-13:00" data-person="JM"></div><div class="schedule-cell" data-day="tuesday" data-slot="12:30-13:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="tuesday" data-slot="13:00-13:30" data-person="KL"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:00-13:30" data-person="CJ"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:00-13:30" data-person="CF"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:00-13:30" data-person="IR"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:00-13:30" data-person="HF"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:00-13:30" data-person="RD"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:00-13:30" data-person="KO"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:00-13:30" data-person="MV"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:00-13:30" data-person="DB"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:00-13:30" data-person="LV"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:00-13:30" data-person="JS"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:00-13:30" data-person="SB"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:00-13:30" data-person="JM"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:00-13:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="tuesday" data-slot="13:30-14:00" data-person="KL"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:30-14:00" data-person="CJ"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:30-14:00" data-person="CF"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:30-14:00" data-person="IR"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:30-14:00" data-person="HF"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:30-14:00" data-person="RD"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:30-14:00" data-person="KO"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:30-14:00" data-person="MV"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:30-14:00" data-person="DB"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:30-14:00" data-person="LV"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:30-14:00" data-person="JS"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:30-14:00" data-person="SB"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:30-14:00" data-person="JM"></div><div class="schedule-cell" data-day="tuesday" data-slot="13:30-14:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="tuesday" data-slot="14:00-14:30" data-person="KL"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:00-14:30" data-person="CJ"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:00-14:30" data-person="CF"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:00-14:30" data-person="IR"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:00-14:30" data-person="HF"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:00-14:30" data-person="RD"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:00-14:30" data-person="KO"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:00-14:30" data-person="MV"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:00-14:30" data-person="DB"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:00-14:30" data-person="LV"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:00-14:30" data-person="JS"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:00-14:30" data-person="SB"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:00-14:30" data-person="JM"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:00-14:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="tuesday" data-slot="14:30-15:00" data-person="KL"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:30-15:00" data-person="CJ"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:30-15:00" data-person="CF"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:30-15:00" data-person="IR"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:30-15:00" data-person="HF"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:30-15:00" data-person="RD"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:30-15:00" data-person="KO"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:30-15:00" data-person="MV"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:30-15:00" data-person="DB"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:30-15:00" data-person="LV"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:30-15:00" data-person="JS"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:30-15:00" data-person="SB"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:30-15:00" data-person="JM"></div><div class="schedule-cell" data-day="tuesday" data-slot="14:30-15:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="tuesday" data-slot="15:00-15:30" data-person="KL"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:00-15:30" data-person="CJ"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:00-15:30" data-person="CF"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:00-15:30" data-person="IR"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:00-15:30" data-person="HF"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:00-15:30" data-person="RD"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:00-15:30" data-person="KO"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:00-15:30" data-person="MV"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:00-15:30" data-person="DB"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:00-15:30" data-person="LV"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:00-15:30" data-person="JS"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:00-15:30" data-person="SB"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:00-15:30" data-person="JM"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:00-15:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="tuesday" data-slot="15:30-16:00" data-person="KL"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:30-16:00" data-person="CJ"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:30-16:00" data-person="CF"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:30-16:00" data-person="IR"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:30-16:00" data-person="HF"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:30-16:00" data-person="RD"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:30-16:00" data-person="KO"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:30-16:00" data-person="MV"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:30-16:00" data-person="DB"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:30-16:00" data-person="LV"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:30-16:00" data-person="JS"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:30-16:00" data-person="SB"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:30-16:00" data-person="JM"></div><div class="schedule-cell" data-day="tuesday" data-slot="15:30-16:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="tuesday" data-slot="16:00-16:30" data-person="KL"></div><div class="schedule-cell" data-day="tuesday" data-slot="16:00-16:30" data-person="CJ"></div><div class="schedule-cell" data-day="tuesday" data-slot="16:00-16:30" data-person="CF"></div><div class="schedule-cell" data-day="tuesday" data-slot="16:00-16:30" data-person="IR"></div><div class="schedule-cell" data-day="tuesday" data-slot="16:00-16:30" data-person="HF"></div><div class="schedule-cell" data-day="tuesday" data-slot="16:00-16:30" data-person="RD"></div><div class="schedule-cell" data-day="tuesday" data-slot="16:00-16:30" data-person="KO"></div><div class="schedule-cell" data-day="tuesday" data-slot="16:00-16:30" data-person="MV"></div><div class="schedule-cell" data-day="tuesday" data-slot="16:00-16:30" data-person="DB"></div><div class="schedule-cell" data-day="tuesday" data-slot="16:00-16:30" data-person="LV"></div><div class="schedule-cell" data-day="tuesday" data-slot="16:00-16:30" data-person="JS"></div><div class="schedule-cell" data-day="tuesday" data-slot="16:00-16:30" data-person="SB"></div><div class="schedule-cell" data-day="tuesday" data-slot="16:00-16:30" data-person="JM"></div><div class="schedule-cell" data-day="tuesday" data-slot="16:00-16:30" data-person="SC"></div></div></div><div class="day-block"><div class="day-header">WEDNESDAY</div><div class="legend-row" style="grid-template-columns: repeat(14, 1fr);"><div class="legend-cell kl">KL</div><div class="legend-cell cj">CJ</div><div class="legend-cell cf">CF</div><div class="legend-cell ir">IR</div><div class="legend-cell hf">HF</div><div class="legend-cell rd">RD</div><div class="legend-cell ko">KO</div><div class="legend-cell mv">MV</div><div class="legend-cell db">DB</div><div class="legend-cell lv">LV</div><div class="legend-cell js">JS</div><div class="legend-cell sb">SB</div><div class="legend-cell jm">JM</div><div class="legend-cell sc">SC</div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="wednesday" data-slot="08:30-09:00" data-person="KL"></div><div class="schedule-cell" data-day="wednesday" data-slot="08:30-09:00" data-person="CJ"></div><div class="schedule-cell" data-day="wednesday" data-slot="08:30-09:00" data-person="CF"></div><div class="schedule-cell" data-day="wednesday" data-slot="08:30-09:00" data-person="IR"></div><div class="schedule-cell" data-day="wednesday" data-slot="08:30-09:00" data-person="HF"></div><div class="schedule-cell" data-day="wednesday" data-slot="08:30-09:00" data-person="RD"></div><div class="schedule-cell" data-day="wednesday" data-slot="08:30-09:00" data-person="KO"></div><div class="schedule-cell" data-day="wednesday" data-slot="08:30-09:00" data-person="MV"></div><div class="schedule-cell" data-day="wednesday" data-slot="08:30-09:00" data-person="DB"></div><div class="schedule-cell" data-day="wednesday" data-slot="08:30-09:00" data-person="LV"></div><div class="schedule-cell" data-day="wednesday" data-slot="08:30-09:00" data-person="JS"></div><div class="schedule-cell" data-day="wednesday" data-slot="08:30-09:00" data-person="SB"></div><div class="schedule-cell" data-day="wednesday" data-slot="08:30-09:00" data-person="JM"></div><div class="schedule-cell" data-day="wednesday" data-slot="08:30-09:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="wednesday" data-slot="09:00-09:30" data-person="KL"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:00-09:30" data-person="CJ"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:00-09:30" data-person="CF"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:00-09:30" data-person="IR"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:00-09:30" data-person="HF"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:00-09:30" data-person="RD"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:00-09:30" data-person="KO"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:00-09:30" data-person="MV"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:00-09:30" data-person="DB"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:00-09:30" data-person="LV"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:00-09:30" data-person="JS"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:00-09:30" data-person="SB"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:00-09:30" data-person="JM"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:00-09:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="wednesday" data-slot="09:30-10:00" data-person="KL"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:30-10:00" data-person="CJ"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:30-10:00" data-person="CF"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:30-10:00" data-person="IR"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:30-10:00" data-person="HF"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:30-10:00" data-person="RD"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:30-10:00" data-person="KO"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:30-10:00" data-person="MV"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:30-10:00" data-person="DB"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:30-10:00" data-person="LV"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:30-10:00" data-person="JS"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:30-10:00" data-person="SB"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:30-10:00" data-person="JM"></div><div class="schedule-cell" data-day="wednesday" data-slot="09:30-10:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="wednesday" data-slot="10:00-10:30" data-person="KL"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:00-10:30" data-person="CJ"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:00-10:30" data-person="CF"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:00-10:30" data-person="IR"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:00-10:30" data-person="HF"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:00-10:30" data-person="RD"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:00-10:30" data-person="KO"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:00-10:30" data-person="MV"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:00-10:30" data-person="DB"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:00-10:30" data-person="LV"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:00-10:30" data-person="JS"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:00-10:30" data-person="SB"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:00-10:30" data-person="JM"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:00-10:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="wednesday" data-slot="10:30-11:00" data-person="KL"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:30-11:00" data-person="CJ"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:30-11:00" data-person="CF"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:30-11:00" data-person="IR"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:30-11:00" data-person="HF"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:30-11:00" data-person="RD"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:30-11:00" data-person="KO"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:30-11:00" data-person="MV"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:30-11:00" data-person="DB"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:30-11:00" data-person="LV"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:30-11:00" data-person="JS"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:30-11:00" data-person="SB"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:30-11:00" data-person="JM"></div><div class="schedule-cell" data-day="wednesday" data-slot="10:30-11:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="wednesday" data-slot="11:00-11:30" data-person="KL"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:00-11:30" data-person="CJ"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:00-11:30" data-person="CF"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:00-11:30" data-person="IR"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:00-11:30" data-person="HF"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:00-11:30" data-person="RD"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:00-11:30" data-person="KO"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:00-11:30" data-person="MV"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:00-11:30" data-person="DB"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:00-11:30" data-person="LV"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:00-11:30" data-person="JS"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:00-11:30" data-person="SB"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:00-11:30" data-person="JM"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:00-11:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="wednesday" data-slot="11:30-12:00" data-person="KL"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:30-12:00" data-person="CJ"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:30-12:00" data-person="CF"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:30-12:00" data-person="IR"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:30-12:00" data-person="HF"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:30-12:00" data-person="RD"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:30-12:00" data-person="KO"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:30-12:00" data-person="MV"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:30-12:00" data-person="DB"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:30-12:00" data-person="LV"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:30-12:00" data-person="JS"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:30-12:00" data-person="SB"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:30-12:00" data-person="JM"></div><div class="schedule-cell" data-day="wednesday" data-slot="11:30-12:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="wednesday" data-slot="12:00-12:30" data-person="KL"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:00-12:30" data-person="CJ"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:00-12:30" data-person="CF"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:00-12:30" data-person="IR"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:00-12:30" data-person="HF"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:00-12:30" data-person="RD"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:00-12:30" data-person="KO"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:00-12:30" data-person="MV"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:00-12:30" data-person="DB"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:00-12:30" data-person="LV"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:00-12:30" data-person="JS"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:00-12:30" data-person="SB"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:00-12:30" data-person="JM"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:00-12:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="wednesday" data-slot="12:30-13:00" data-person="KL"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:30-13:00" data-person="CJ"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:30-13:00" data-person="CF"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:30-13:00" data-person="IR"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:30-13:00" data-person="HF"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:30-13:00" data-person="RD"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:30-13:00" data-person="KO"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:30-13:00" data-person="MV"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:30-13:00" data-person="DB"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:30-13:00" data-person="LV"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:30-13:00" data-person="JS"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:30-13:00" data-person="SB"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:30-13:00" data-person="JM"></div><div class="schedule-cell" data-day="wednesday" data-slot="12:30-13:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="wednesday" data-slot="13:00-13:30" data-person="KL"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:00-13:30" data-person="CJ"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:00-13:30" data-person="CF"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:00-13:30" data-person="IR"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:00-13:30" data-person="HF"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:00-13:30" data-person="RD"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:00-13:30" data-person="KO"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:00-13:30" data-person="MV"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:00-13:30" data-person="DB"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:00-13:30" data-person="LV"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:00-13:30" data-person="JS"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:00-13:30" data-person="SB"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:00-13:30" data-person="JM"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:00-13:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="wednesday" data-slot="13:30-14:00" data-person="KL"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:30-14:00" data-person="CJ"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:30-14:00" data-person="CF"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:30-14:00" data-person="IR"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:30-14:00" data-person="HF"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:30-14:00" data-person="RD"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:30-14:00" data-person="KO"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:30-14:00" data-person="MV"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:30-14:00" data-person="DB"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:30-14:00" data-person="LV"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:30-14:00" data-person="JS"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:30-14:00" data-person="SB"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:30-14:00" data-person="JM"></div><div class="schedule-cell" data-day="wednesday" data-slot="13:30-14:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="wednesday" data-slot="14:00-14:30" data-person="KL"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:00-14:30" data-person="CJ"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:00-14:30" data-person="CF"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:00-14:30" data-person="IR"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:00-14:30" data-person="HF"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:00-14:30" data-person="RD"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:00-14:30" data-person="KO"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:00-14:30" data-person="MV"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:00-14:30" data-person="DB"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:00-14:30" data-person="LV"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:00-14:30" data-person="JS"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:00-14:30" data-person="SB"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:00-14:30" data-person="JM"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:00-14:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="wednesday" data-slot="14:30-15:00" data-person="KL"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:30-15:00" data-person="CJ"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:30-15:00" data-person="CF"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:30-15:00" data-person="IR"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:30-15:00" data-person="HF"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:30-15:00" data-person="RD"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:30-15:00" data-person="KO"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:30-15:00" data-person="MV"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:30-15:00" data-person="DB"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:30-15:00" data-person="LV"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:30-15:00" data-person="JS"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:30-15:00" data-person="SB"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:30-15:00" data-person="JM"></div><div class="schedule-cell" data-day="wednesday" data-slot="14:30-15:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="wednesday" data-slot="15:00-15:30" data-person="KL"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:00-15:30" data-person="CJ"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:00-15:30" data-person="CF"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:00-15:30" data-person="IR"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:00-15:30" data-person="HF"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:00-15:30" data-person="RD"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:00-15:30" data-person="KO"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:00-15:30" data-person="MV"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:00-15:30" data-person="DB"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:00-15:30" data-person="LV"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:00-15:30" data-person="JS"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:00-15:30" data-person="SB"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:00-15:30" data-person="JM"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:00-15:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="wednesday" data-slot="15:30-16:00" data-person="KL"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:30-16:00" data-person="CJ"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:30-16:00" data-person="CF"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:30-16:00" data-person="IR"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:30-16:00" data-person="HF"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:30-16:00" data-person="RD"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:30-16:00" data-person="KO"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:30-16:00" data-person="MV"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:30-16:00" data-person="DB"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:30-16:00" data-person="LV"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:30-16:00" data-person="JS"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:30-16:00" data-person="SB"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:30-16:00" data-person="JM"></div><div class="schedule-cell" data-day="wednesday" data-slot="15:30-16:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="wednesday" data-slot="16:00-16:30" data-person="KL"></div><div class="schedule-cell" data-day="wednesday" data-slot="16:00-16:30" data-person="CJ"></div><div class="schedule-cell" data-day="wednesday" data-slot="16:00-16:30" data-person="CF"></div><div class="schedule-cell" data-day="wednesday" data-slot="16:00-16:30" data-person="IR"></div><div class="schedule-cell" data-day="wednesday" data-slot="16:00-16:30" data-person="HF"></div><div class="schedule-cell" data-day="wednesday" data-slot="16:00-16:30" data-person="RD"></div><div class="schedule-cell" data-day="wednesday" data-slot="16:00-16:30" data-person="KO"></div><div class="schedule-cell" data-day="wednesday" data-slot="16:00-16:30" data-person="MV"></div><div class="schedule-cell" data-day="wednesday" data-slot="16:00-16:30" data-person="DB"></div><div class="schedule-cell" data-day="wednesday" data-slot="16:00-16:30" data-person="LV"></div><div class="schedule-cell" data-day="wednesday" data-slot="16:00-16:30" data-person="JS"></div><div class="schedule-cell" data-day="wednesday" data-slot="16:00-16:30" data-person="SB"></div><div class="schedule-cell" data-day="wednesday" data-slot="16:00-16:30" data-person="JM"></div><div class="schedule-cell" data-day="wednesday" data-slot="16:00-16:30" data-person="SC"></div></div></div><div class="day-block"><div class="day-header">THURSDAY</div><div class="legend-row" style="grid-template-columns: repeat(14, 1fr);"><div class="legend-cell kl">KL</div><div class="legend-cell cj">CJ</div><div class="legend-cell cf">CF</div><div class="legend-cell ir">IR</div><div class="legend-cell hf">HF</div><div class="legend-cell rd">RD</div><div class="legend-cell ko">KO</div><div class="legend-cell mv">MV</div><div class="legend-cell db">DB</div><div class="legend-cell lv">LV</div><div class="legend-cell js">JS</div><div class="legend-cell sb">SB</div><div class="legend-cell jm">JM</div><div class="legend-cell sc">SC</div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="thursday" data-slot="08:30-09:00" data-person="KL"></div><div class="schedule-cell" data-day="thursday" data-slot="08:30-09:00" data-person="CJ"></div><div class="schedule-cell" data-day="thursday" data-slot="08:30-09:00" data-person="CF"></div><div class="schedule-cell" data-day="thursday" data-slot="08:30-09:00" data-person="IR"></div><div class="schedule-cell" data-day="thursday" data-slot="08:30-09:00" data-person="HF"></div><div class="schedule-cell" data-day="thursday" data-slot="08:30-09:00" data-person="RD"></div><div class="schedule-cell" data-day="thursday" data-slot="08:30-09:00" data-person="KO"></div><div class="schedule-cell" data-day="thursday" data-slot="08:30-09:00" data-person="MV"></div><div class="schedule-cell" data-day="thursday" data-slot="08:30-09:00" data-person="DB"></div><div class="schedule-cell" data-day="thursday" data-slot="08:30-09:00" data-person="LV"></div><div class="schedule-cell" data-day="thursday" data-slot="08:30-09:00" data-person="JS"></div><div class="schedule-cell" data-day="thursday" data-slot="08:30-09:00" data-person="SB"></div><div class="schedule-cell" data-day="thursday" data-slot="08:30-09:00" data-person="JM"></div><div class="schedule-cell" data-day="thursday" data-slot="08:30-09:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="thursday" data-slot="09:00-09:30" data-person="KL"></div><div class="schedule-cell" data-day="thursday" data-slot="09:00-09:30" data-person="CJ"></div><div class="schedule-cell" data-day="thursday" data-slot="09:00-09:30" data-person="CF"></div><div class="schedule-cell" data-day="thursday" data-slot="09:00-09:30" data-person="IR"></div><div class="schedule-cell" data-day="thursday" data-slot="09:00-09:30" data-person="HF"></div><div class="schedule-cell" data-day="thursday" data-slot="09:00-09:30" data-person="RD"></div><div class="schedule-cell" data-day="thursday" data-slot="09:00-09:30" data-person="KO"></div><div class="schedule-cell" data-day="thursday" data-slot="09:00-09:30" data-person="MV"></div><div class="schedule-cell" data-day="thursday" data-slot="09:00-09:30" data-person="DB"></div><div class="schedule-cell" data-day="thursday" data-slot="09:00-09:30" data-person="LV"></div><div class="schedule-cell" data-day="thursday" data-slot="09:00-09:30" data-person="JS"></div><div class="schedule-cell" data-day="thursday" data-slot="09:00-09:30" data-person="SB"></div><div class="schedule-cell" data-day="thursday" data-slot="09:00-09:30" data-person="JM"></div><div class="schedule-cell" data-day="thursday" data-slot="09:00-09:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="thursday" data-slot="09:30-10:00" data-person="KL"></div><div class="schedule-cell" data-day="thursday" data-slot="09:30-10:00" data-person="CJ"></div><div class="schedule-cell" data-day="thursday" data-slot="09:30-10:00" data-person="CF"></div><div class="schedule-cell" data-day="thursday" data-slot="09:30-10:00" data-person="IR"></div><div class="schedule-cell" data-day="thursday" data-slot="09:30-10:00" data-person="HF"></div><div class="schedule-cell" data-day="thursday" data-slot="09:30-10:00" data-person="RD"></div><div class="schedule-cell" data-day="thursday" data-slot="09:30-10:00" data-person="KO"></div><div class="schedule-cell" data-day="thursday" data-slot="09:30-10:00" data-person="MV"></div><div class="schedule-cell" data-day="thursday" data-slot="09:30-10:00" data-person="DB"></div><div class="schedule-cell" data-day="thursday" data-slot="09:30-10:00" data-person="LV"></div><div class="schedule-cell" data-day="thursday" data-slot="09:30-10:00" data-person="JS"></div><div class="schedule-cell" data-day="thursday" data-slot="09:30-10:00" data-person="SB"></div><div class="schedule-cell" data-day="thursday" data-slot="09:30-10:00" data-person="JM"></div><div class="schedule-cell" data-day="thursday" data-slot="09:30-10:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="thursday" data-slot="10:00-10:30" data-person="KL"></div><div class="schedule-cell" data-day="thursday" data-slot="10:00-10:30" data-person="CJ"></div><div class="schedule-cell" data-day="thursday" data-slot="10:00-10:30" data-person="CF"></div><div class="schedule-cell" data-day="thursday" data-slot="10:00-10:30" data-person="IR"></div><div class="schedule-cell" data-day="thursday" data-slot="10:00-10:30" data-person="HF"></div><div class="schedule-cell" data-day="thursday" data-slot="10:00-10:30" data-person="RD"></div><div class="schedule-cell" data-day="thursday" data-slot="10:00-10:30" data-person="KO"></div><div class="schedule-cell" data-day="thursday" data-slot="10:00-10:30" data-person="MV"></div><div class="schedule-cell" data-day="thursday" data-slot="10:00-10:30" data-person="DB"></div><div class="schedule-cell" data-day="thursday" data-slot="10:00-10:30" data-person="LV"></div><div class="schedule-cell" data-day="thursday" data-slot="10:00-10:30" data-person="JS"></div><div class="schedule-cell" data-day="thursday" data-slot="10:00-10:30" data-person="SB"></div><div class="schedule-cell" data-day="thursday" data-slot="10:00-10:30" data-person="JM"></div><div class="schedule-cell" data-day="thursday" data-slot="10:00-10:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="thursday" data-slot="10:30-11:00" data-person="KL"></div><div class="schedule-cell" data-day="thursday" data-slot="10:30-11:00" data-person="CJ"></div><div class="schedule-cell" data-day="thursday" data-slot="10:30-11:00" data-person="CF"></div><div class="schedule-cell" data-day="thursday" data-slot="10:30-11:00" data-person="IR"></div><div class="schedule-cell" data-day="thursday" data-slot="10:30-11:00" data-person="HF"></div><div class="schedule-cell" data-day="thursday" data-slot="10:30-11:00" data-person="RD"></div><div class="schedule-cell" data-day="thursday" data-slot="10:30-11:00" data-person="KO"></div><div class="schedule-cell" data-day="thursday" data-slot="10:30-11:00" data-person="MV"></div><div class="schedule-cell" data-day="thursday" data-slot="10:30-11:00" data-person="DB"></div><div class="schedule-cell" data-day="thursday" data-slot="10:30-11:00" data-person="LV"></div><div class="schedule-cell" data-day="thursday" data-slot="10:30-11:00" data-person="JS"></div><div class="schedule-cell" data-day="thursday" data-slot="10:30-11:00" data-person="SB"></div><div class="schedule-cell" data-day="thursday" data-slot="10:30-11:00" data-person="JM"></div><div class="schedule-cell" data-day="thursday" data-slot="10:30-11:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="thursday" data-slot="11:00-11:30" data-person="KL"></div><div class="schedule-cell" data-day="thursday" data-slot="11:00-11:30" data-person="CJ"></div><div class="schedule-cell" data-day="thursday" data-slot="11:00-11:30" data-person="CF"></div><div class="schedule-cell" data-day="thursday" data-slot="11:00-11:30" data-person="IR"></div><div class="schedule-cell" data-day="thursday" data-slot="11:00-11:30" data-person="HF"></div><div class="schedule-cell" data-day="thursday" data-slot="11:00-11:30" data-person="RD"></div><div class="schedule-cell" data-day="thursday" data-slot="11:00-11:30" data-person="KO"></div><div class="schedule-cell" data-day="thursday" data-slot="11:00-11:30" data-person="MV"></div><div class="schedule-cell" data-day="thursday" data-slot="11:00-11:30" data-person="DB"></div><div class="schedule-cell" data-day="thursday" data-slot="11:00-11:30" data-person="LV"></div><div class="schedule-cell" data-day="thursday" data-slot="11:00-11:30" data-person="JS"></div><div class="schedule-cell" data-day="thursday" data-slot="11:00-11:30" data-person="SB"></div><div class="schedule-cell" data-day="thursday" data-slot="11:00-11:30" data-person="JM"></div><div class="schedule-cell" data-day="thursday" data-slot="11:00-11:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="thursday" data-slot="11:30-12:00" data-person="KL"></div><div class="schedule-cell" data-day="thursday" data-slot="11:30-12:00" data-person="CJ"></div><div class="schedule-cell" data-day="thursday" data-slot="11:30-12:00" data-person="CF"></div><div class="schedule-cell" data-day="thursday" data-slot="11:30-12:00" data-person="IR"></div><div class="schedule-cell" data-day="thursday" data-slot="11:30-12:00" data-person="HF"></div><div class="schedule-cell" data-day="thursday" data-slot="11:30-12:00" data-person="RD"></div><div class="schedule-cell" data-day="thursday" data-slot="11:30-12:00" data-person="KO"></div><div class="schedule-cell" data-day="thursday" data-slot="11:30-12:00" data-person="MV"></div><div class="schedule-cell" data-day="thursday" data-slot="11:30-12:00" data-person="DB"></div><div class="schedule-cell" data-day="thursday" data-slot="11:30-12:00" data-person="LV"></div><div class="schedule-cell" data-day="thursday" data-slot="11:30-12:00" data-person="JS"></div><div class="schedule-cell" data-day="thursday" data-slot="11:30-12:00" data-person="SB"></div><div class="schedule-cell" data-day="thursday" data-slot="11:30-12:00" data-person="JM"></div><div class="schedule-cell" data-day="thursday" data-slot="11:30-12:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="thursday" data-slot="12:00-12:30" data-person="KL"></div><div class="schedule-cell" data-day="thursday" data-slot="12:00-12:30" data-person="CJ"></div><div class="schedule-cell" data-day="thursday" data-slot="12:00-12:30" data-person="CF"></div><div class="schedule-cell" data-day="thursday" data-slot="12:00-12:30" data-person="IR"></div><div class="schedule-cell" data-day="thursday" data-slot="12:00-12:30" data-person="HF"></div><div class="schedule-cell" data-day="thursday" data-slot="12:00-12:30" data-person="RD"></div><div class="schedule-cell" data-day="thursday" data-slot="12:00-12:30" data-person="KO"></div><div class="schedule-cell" data-day="thursday" data-slot="12:00-12:30" data-person="MV"></div><div class="schedule-cell" data-day="thursday" data-slot="12:00-12:30" data-person="DB"></div><div class="schedule-cell" data-day="thursday" data-slot="12:00-12:30" data-person="LV"></div><div class="schedule-cell" data-day="thursday" data-slot="12:00-12:30" data-person="JS"></div><div class="schedule-cell" data-day="thursday" data-slot="12:00-12:30" data-person="SB"></div><div class="schedule-cell" data-day="thursday" data-slot="12:00-12:30" data-person="JM"></div><div class="schedule-cell" data-day="thursday" data-slot="12:00-12:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="thursday" data-slot="12:30-13:00" data-person="KL"></div><div class="schedule-cell" data-day="thursday" data-slot="12:30-13:00" data-person="CJ"></div><div class="schedule-cell" data-day="thursday" data-slot="12:30-13:00" data-person="CF"></div><div class="schedule-cell" data-day="thursday" data-slot="12:30-13:00" data-person="IR"></div><div class="schedule-cell" data-day="thursday" data-slot="12:30-13:00" data-person="HF"></div><div class="schedule-cell" data-day="thursday" data-slot="12:30-13:00" data-person="RD"></div><div class="schedule-cell" data-day="thursday" data-slot="12:30-13:00" data-person="KO"></div><div class="schedule-cell" data-day="thursday" data-slot="12:30-13:00" data-person="MV"></div><div class="schedule-cell" data-day="thursday" data-slot="12:30-13:00" data-person="DB"></div><div class="schedule-cell" data-day="thursday" data-slot="12:30-13:00" data-person="LV"></div><div class="schedule-cell" data-day="thursday" data-slot="12:30-13:00" data-person="JS"></div><div class="schedule-cell" data-day="thursday" data-slot="12:30-13:00" data-person="SB"></div><div class="schedule-cell" data-day="thursday" data-slot="12:30-13:00" data-person="JM"></div><div class="schedule-cell" data-day="thursday" data-slot="12:30-13:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="thursday" data-slot="13:00-13:30" data-person="KL"></div><div class="schedule-cell" data-day="thursday" data-slot="13:00-13:30" data-person="CJ"></div><div class="schedule-cell" data-day="thursday" data-slot="13:00-13:30" data-person="CF"></div><div class="schedule-cell" data-day="thursday" data-slot="13:00-13:30" data-person="IR"></div><div class="schedule-cell" data-day="thursday" data-slot="13:00-13:30" data-person="HF"></div><div class="schedule-cell" data-day="thursday" data-slot="13:00-13:30" data-person="RD"></div><div class="schedule-cell" data-day="thursday" data-slot="13:00-13:30" data-person="KO"></div><div class="schedule-cell" data-day="thursday" data-slot="13:00-13:30" data-person="MV"></div><div class="schedule-cell" data-day="thursday" data-slot="13:00-13:30" data-person="DB"></div><div class="schedule-cell" data-day="thursday" data-slot="13:00-13:30" data-person="LV"></div><div class="schedule-cell" data-day="thursday" data-slot="13:00-13:30" data-person="JS"></div><div class="schedule-cell" data-day="thursday" data-slot="13:00-13:30" data-person="SB"></div><div class="schedule-cell" data-day="thursday" data-slot="13:00-13:30" data-person="JM"></div><div class="schedule-cell" data-day="thursday" data-slot="13:00-13:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="thursday" data-slot="13:30-14:00" data-person="KL"></div><div class="schedule-cell" data-day="thursday" data-slot="13:30-14:00" data-person="CJ"></div><div class="schedule-cell" data-day="thursday" data-slot="13:30-14:00" data-person="CF"></div><div class="schedule-cell" data-day="thursday" data-slot="13:30-14:00" data-person="IR"></div><div class="schedule-cell" data-day="thursday" data-slot="13:30-14:00" data-person="HF"></div><div class="schedule-cell" data-day="thursday" data-slot="13:30-14:00" data-person="RD"></div><div class="schedule-cell" data-day="thursday" data-slot="13:30-14:00" data-person="KO"></div><div class="schedule-cell" data-day="thursday" data-slot="13:30-14:00" data-person="MV"></div><div class="schedule-cell" data-day="thursday" data-slot="13:30-14:00" data-person="DB"></div><div class="schedule-cell" data-day="thursday" data-slot="13:30-14:00" data-person="LV"></div><div class="schedule-cell" data-day="thursday" data-slot="13:30-14:00" data-person="JS"></div><div class="schedule-cell" data-day="thursday" data-slot="13:30-14:00" data-person="SB"></div><div class="schedule-cell" data-day="thursday" data-slot="13:30-14:00" data-person="JM"></div><div class="schedule-cell" data-day="thursday" data-slot="13:30-14:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="thursday" data-slot="14:00-14:30" data-person="KL"></div><div class="schedule-cell" data-day="thursday" data-slot="14:00-14:30" data-person="CJ"></div><div class="schedule-cell" data-day="thursday" data-slot="14:00-14:30" data-person="CF"></div><div class="schedule-cell" data-day="thursday" data-slot="14:00-14:30" data-person="IR"></div><div class="schedule-cell" data-day="thursday" data-slot="14:00-14:30" data-person="HF"></div><div class="schedule-cell" data-day="thursday" data-slot="14:00-14:30" data-person="RD"></div><div class="schedule-cell" data-day="thursday" data-slot="14:00-14:30" data-person="KO"></div><div class="schedule-cell" data-day="thursday" data-slot="14:00-14:30" data-person="MV"></div><div class="schedule-cell" data-day="thursday" data-slot="14:00-14:30" data-person="DB"></div><div class="schedule-cell" data-day="thursday" data-slot="14:00-14:30" data-person="LV"></div><div class="schedule-cell" data-day="thursday" data-slot="14:00-14:30" data-person="JS"></div><div class="schedule-cell" data-day="thursday" data-slot="14:00-14:30" data-person="SB"></div><div class="schedule-cell" data-day="thursday" data-slot="14:00-14:30" data-person="JM"></div><div class="schedule-cell" data-day="thursday" data-slot="14:00-14:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="thursday" data-slot="14:30-15:00" data-person="KL"></div><div class="schedule-cell" data-day="thursday" data-slot="14:30-15:00" data-person="CJ"></div><div class="schedule-cell" data-day="thursday" data-slot="14:30-15:00" data-person="CF"></div><div class="schedule-cell" data-day="thursday" data-slot="14:30-15:00" data-person="IR"></div><div class="schedule-cell" data-day="thursday" data-slot="14:30-15:00" data-person="HF"></div><div class="schedule-cell" data-day="thursday" data-slot="14:30-15:00" data-person="RD"></div><div class="schedule-cell" data-day="thursday" data-slot="14:30-15:00" data-person="KO"></div><div class="schedule-cell" data-day="thursday" data-slot="14:30-15:00" data-person="MV"></div><div class="schedule-cell" data-day="thursday" data-slot="14:30-15:00" data-person="DB"></div><div class="schedule-cell" data-day="thursday" data-slot="14:30-15:00" data-person="LV"></div><div class="schedule-cell" data-day="thursday" data-slot="14:30-15:00" data-person="JS"></div><div class="schedule-cell" data-day="thursday" data-slot="14:30-15:00" data-person="SB"></div><div class="schedule-cell" data-day="thursday" data-slot="14:30-15:00" data-person="JM"></div><div class="schedule-cell" data-day="thursday" data-slot="14:30-15:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="thursday" data-slot="15:00-15:30" data-person="KL"></div><div class="schedule-cell" data-day="thursday" data-slot="15:00-15:30" data-person="CJ"></div><div class="schedule-cell" data-day="thursday" data-slot="15:00-15:30" data-person="CF"></div><div class="schedule-cell" data-day="thursday" data-slot="15:00-15:30" data-person="IR"></div><div class="schedule-cell" data-day="thursday" data-slot="15:00-15:30" data-person="HF"></div><div class="schedule-cell" data-day="thursday" data-slot="15:00-15:30" data-person="RD"></div><div class="schedule-cell" data-day="thursday" data-slot="15:00-15:30" data-person="KO"></div><div class="schedule-cell" data-day="thursday" data-slot="15:00-15:30" data-person="MV"></div><div class="schedule-cell" data-day="thursday" data-slot="15:00-15:30" data-person="DB"></div><div class="schedule-cell" data-day="thursday" data-slot="15:00-15:30" data-person="LV"></div><div class="schedule-cell" data-day="thursday" data-slot="15:00-15:30" data-person="JS"></div><div class="schedule-cell" data-day="thursday" data-slot="15:00-15:30" data-person="SB"></div><div class="schedule-cell" data-day="thursday" data-slot="15:00-15:30" data-person="JM"></div><div class="schedule-cell" data-day="thursday" data-slot="15:00-15:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="thursday" data-slot="15:30-16:00" data-person="KL"></div><div class="schedule-cell" data-day="thursday" data-slot="15:30-16:00" data-person="CJ"></div><div class="schedule-cell" data-day="thursday" data-slot="15:30-16:00" data-person="CF"></div><div class="schedule-cell" data-day="thursday" data-slot="15:30-16:00" data-person="IR"></div><div class="schedule-cell" data-day="thursday" data-slot="15:30-16:00" data-person="HF"></div><div class="schedule-cell" data-day="thursday" data-slot="15:30-16:00" data-person="RD"></div><div class="schedule-cell" data-day="thursday" data-slot="15:30-16:00" data-person="KO"></div><div class="schedule-cell" data-day="thursday" data-slot="15:30-16:00" data-person="MV"></div><div class="schedule-cell" data-day="thursday" data-slot="15:30-16:00" data-person="DB"></div><div class="schedule-cell" data-day="thursday" data-slot="15:30-16:00" data-person="LV"></div><div class="schedule-cell" data-day="thursday" data-slot="15:30-16:00" data-person="JS"></div><div class="schedule-cell" data-day="thursday" data-slot="15:30-16:00" data-person="SB"></div><div class="schedule-cell" data-day="thursday" data-slot="15:30-16:00" data-person="JM"></div><div class="schedule-cell" data-day="thursday" data-slot="15:30-16:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="thursday" data-slot="16:00-16:30" data-person="KL"></div><div class="schedule-cell" data-day="thursday" data-slot="16:00-16:30" data-person="CJ"></div><div class="schedule-cell" data-day="thursday" data-slot="16:00-16:30" data-person="CF"></div><div class="schedule-cell" data-day="thursday" data-slot="16:00-16:30" data-person="IR"></div><div class="schedule-cell" data-day="thursday" data-slot="16:00-16:30" data-person="HF"></div><div class="schedule-cell" data-day="thursday" data-slot="16:00-16:30" data-person="RD"></div><div class="schedule-cell" data-day="thursday" data-slot="16:00-16:30" data-person="KO"></div><div class="schedule-cell" data-day="thursday" data-slot="16:00-16:30" data-person="MV"></div><div class="schedule-cell" data-day="thursday" data-slot="16:00-16:30" data-person="DB"></div><div class="schedule-cell" data-day="thursday" data-slot="16:00-16:30" data-person="LV"></div><div class="schedule-cell" data-day="thursday" data-slot="16:00-16:30" data-person="JS"></div><div class="schedule-cell" data-day="thursday" data-slot="16:00-16:30" data-person="SB"></div><div class="schedule-cell" data-day="thursday" data-slot="16:00-16:30" data-person="JM"></div><div class="schedule-cell" data-day="thursday" data-slot="16:00-16:30" data-person="SC"></div></div></div><div class="day-block"><div class="day-header">FRIDAY</div><div class="legend-row" style="grid-template-columns: repeat(14, 1fr);"><div class="legend-cell kl">KL</div><div class="legend-cell cj">CJ</div><div class="legend-cell cf">CF</div><div class="legend-cell ir">IR</div><div class="legend-cell hf">HF</div><div class="legend-cell rd">RD</div><div class="legend-cell ko">KO</div><div class="legend-cell mv">MV</div><div class="legend-cell db">DB</div><div class="legend-cell lv">LV</div><div class="legend-cell js">JS</div><div class="legend-cell sb">SB</div><div class="legend-cell jm">JM</div><div class="legend-cell sc">SC</div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="friday" data-slot="08:30-09:00" data-person="KL"></div><div class="schedule-cell" data-day="friday" data-slot="08:30-09:00" data-person="CJ"></div><div class="schedule-cell" data-day="friday" data-slot="08:30-09:00" data-person="CF"></div><div class="schedule-cell" data-day="friday" data-slot="08:30-09:00" data-person="IR"></div><div class="schedule-cell" data-day="friday" data-slot="08:30-09:00" data-person="HF"></div><div class="schedule-cell" data-day="friday" data-slot="08:30-09:00" data-person="RD"></div><div class="schedule-cell" data-day="friday" data-slot="08:30-09:00" data-person="KO"></div><div class="schedule-cell" data-day="friday" data-slot="08:30-09:00" data-person="MV"></div><div class="schedule-cell" data-day="friday" data-slot="08:30-09:00" data-person="DB"></div><div class="schedule-cell" data-day="friday" data-slot="08:30-09:00" data-person="LV"></div><div class="schedule-cell" data-day="friday" data-slot="08:30-09:00" data-person="JS"></div><div class="schedule-cell" data-day="friday" data-slot="08:30-09:00" data-person="SB"></div><div class="schedule-cell" data-day="friday" data-slot="08:30-09:00" data-person="JM"></div><div class="schedule-cell" data-day="friday" data-slot="08:30-09:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="friday" data-slot="09:00-09:30" data-person="KL"></div><div class="schedule-cell" data-day="friday" data-slot="09:00-09:30" data-person="CJ"></div><div class="schedule-cell" data-day="friday" data-slot="09:00-09:30" data-person="CF"></div><div class="schedule-cell" data-day="friday" data-slot="09:00-09:30" data-person="IR"></div><div class="schedule-cell" data-day="friday" data-slot="09:00-09:30" data-person="HF"></div><div class="schedule-cell" data-day="friday" data-slot="09:00-09:30" data-person="RD"></div><div class="schedule-cell" data-day="friday" data-slot="09:00-09:30" data-person="KO"></div><div class="schedule-cell" data-day="friday" data-slot="09:00-09:30" data-person="MV"></div><div class="schedule-cell" data-day="friday" data-slot="09:00-09:30" data-person="DB"></div><div class="schedule-cell" data-day="friday" data-slot="09:00-09:30" data-person="LV"></div><div class="schedule-cell" data-day="friday" data-slot="09:00-09:30" data-person="JS"></div><div class="schedule-cell" data-day="friday" data-slot="09:00-09:30" data-person="SB"></div><div class="schedule-cell" data-day="friday" data-slot="09:00-09:30" data-person="JM"></div><div class="schedule-cell" data-day="friday" data-slot="09:00-09:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="friday" data-slot="09:30-10:00" data-person="KL"></div><div class="schedule-cell" data-day="friday" data-slot="09:30-10:00" data-person="CJ"></div><div class="schedule-cell" data-day="friday" data-slot="09:30-10:00" data-person="CF"></div><div class="schedule-cell" data-day="friday" data-slot="09:30-10:00" data-person="IR"></div><div class="schedule-cell" data-day="friday" data-slot="09:30-10:00" data-person="HF"></div><div class="schedule-cell" data-day="friday" data-slot="09:30-10:00" data-person="RD"></div><div class="schedule-cell" data-day="friday" data-slot="09:30-10:00" data-person="KO"></div><div class="schedule-cell" data-day="friday" data-slot="09:30-10:00" data-person="MV"></div><div class="schedule-cell" data-day="friday" data-slot="09:30-10:00" data-person="DB"></div><div class="schedule-cell" data-day="friday" data-slot="09:30-10:00" data-person="LV"></div><div class="schedule-cell" data-day="friday" data-slot="09:30-10:00" data-person="JS"></div><div class="schedule-cell" data-day="friday" data-slot="09:30-10:00" data-person="SB"></div><div class="schedule-cell" data-day="friday" data-slot="09:30-10:00" data-person="JM"></div><div class="schedule-cell" data-day="friday" data-slot="09:30-10:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="friday" data-slot="10:00-10:30" data-person="KL"></div><div class="schedule-cell" data-day="friday" data-slot="10:00-10:30" data-person="CJ"></div><div class="schedule-cell" data-day="friday" data-slot="10:00-10:30" data-person="CF"></div><div class="schedule-cell" data-day="friday" data-slot="10:00-10:30" data-person="IR"></div><div class="schedule-cell" data-day="friday" data-slot="10:00-10:30" data-person="HF"></div><div class="schedule-cell" data-day="friday" data-slot="10:00-10:30" data-person="RD"></div><div class="schedule-cell" data-day="friday" data-slot="10:00-10:30" data-person="KO"></div><div class="schedule-cell" data-day="friday" data-slot="10:00-10:30" data-person="MV"></div><div class="schedule-cell" data-day="friday" data-slot="10:00-10:30" data-person="DB"></div><div class="schedule-cell" data-day="friday" data-slot="10:00-10:30" data-person="LV"></div><div class="schedule-cell" data-day="friday" data-slot="10:00-10:30" data-person="JS"></div><div class="schedule-cell" data-day="friday" data-slot="10:00-10:30" data-person="SB"></div><div class="schedule-cell" data-day="friday" data-slot="10:00-10:30" data-person="JM"></div><div class="schedule-cell" data-day="friday" data-slot="10:00-10:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="friday" data-slot="10:30-11:00" data-person="KL"></div><div class="schedule-cell" data-day="friday" data-slot="10:30-11:00" data-person="CJ"></div><div class="schedule-cell" data-day="friday" data-slot="10:30-11:00" data-person="CF"></div><div class="schedule-cell" data-day="friday" data-slot="10:30-11:00" data-person="IR"></div><div class="schedule-cell" data-day="friday" data-slot="10:30-11:00" data-person="HF"></div><div class="schedule-cell" data-day="friday" data-slot="10:30-11:00" data-person="RD"></div><div class="schedule-cell" data-day="friday" data-slot="10:30-11:00" data-person="KO"></div><div class="schedule-cell" data-day="friday" data-slot="10:30-11:00" data-person="MV"></div><div class="schedule-cell" data-day="friday" data-slot="10:30-11:00" data-person="DB"></div><div class="schedule-cell" data-day="friday" data-slot="10:30-11:00" data-person="LV"></div><div class="schedule-cell" data-day="friday" data-slot="10:30-11:00" data-person="JS"></div><div class="schedule-cell" data-day="friday" data-slot="10:30-11:00" data-person="SB"></div><div class="schedule-cell" data-day="friday" data-slot="10:30-11:00" data-person="JM"></div><div class="schedule-cell" data-day="friday" data-slot="10:30-11:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="friday" data-slot="11:00-11:30" data-person="KL"></div><div class="schedule-cell" data-day="friday" data-slot="11:00-11:30" data-person="CJ"></div><div class="schedule-cell" data-day="friday" data-slot="11:00-11:30" data-person="CF"></div><div class="schedule-cell" data-day="friday" data-slot="11:00-11:30" data-person="IR"></div><div class="schedule-cell" data-day="friday" data-slot="11:00-11:30" data-person="HF"></div><div class="schedule-cell" data-day="friday" data-slot="11:00-11:30" data-person="RD"></div><div class="schedule-cell" data-day="friday" data-slot="11:00-11:30" data-person="KO"></div><div class="schedule-cell" data-day="friday" data-slot="11:00-11:30" data-person="MV"></div><div class="schedule-cell" data-day="friday" data-slot="11:00-11:30" data-person="DB"></div><div class="schedule-cell" data-day="friday" data-slot="11:00-11:30" data-person="LV"></div><div class="schedule-cell" data-day="friday" data-slot="11:00-11:30" data-person="JS"></div><div class="schedule-cell" data-day="friday" data-slot="11:00-11:30" data-person="SB"></div><div class="schedule-cell" data-day="friday" data-slot="11:00-11:30" data-person="JM"></div><div class="schedule-cell" data-day="friday" data-slot="11:00-11:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="friday" data-slot="11:30-12:00" data-person="KL"></div><div class="schedule-cell" data-day="friday" data-slot="11:30-12:00" data-person="CJ"></div><div class="schedule-cell" data-day="friday" data-slot="11:30-12:00" data-person="CF"></div><div class="schedule-cell" data-day="friday" data-slot="11:30-12:00" data-person="IR"></div><div class="schedule-cell" data-day="friday" data-slot="11:30-12:00" data-person="HF"></div><div class="schedule-cell" data-day="friday" data-slot="11:30-12:00" data-person="RD"></div><div class="schedule-cell" data-day="friday" data-slot="11:30-12:00" data-person="KO"></div><div class="schedule-cell" data-day="friday" data-slot="11:30-12:00" data-person="MV"></div><div class="schedule-cell" data-day="friday" data-slot="11:30-12:00" data-person="DB"></div><div class="schedule-cell" data-day="friday" data-slot="11:30-12:00" data-person="LV"></div><div class="schedule-cell" data-day="friday" data-slot="11:30-12:00" data-person="JS"></div><div class="schedule-cell" data-day="friday" data-slot="11:30-12:00" data-person="SB"></div><div class="schedule-cell" data-day="friday" data-slot="11:30-12:00" data-person="JM"></div><div class="schedule-cell" data-day="friday" data-slot="11:30-12:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="friday" data-slot="12:00-12:30" data-person="KL"></div><div class="schedule-cell" data-day="friday" data-slot="12:00-12:30" data-person="CJ"></div><div class="schedule-cell" data-day="friday" data-slot="12:00-12:30" data-person="CF"></div><div class="schedule-cell" data-day="friday" data-slot="12:00-12:30" data-person="IR"></div><div class="schedule-cell" data-day="friday" data-slot="12:00-12:30" data-person="HF"></div><div class="schedule-cell" data-day="friday" data-slot="12:00-12:30" data-person="RD"></div><div class="schedule-cell" data-day="friday" data-slot="12:00-12:30" data-person="KO"></div><div class="schedule-cell" data-day="friday" data-slot="12:00-12:30" data-person="MV"></div><div class="schedule-cell" data-day="friday" data-slot="12:00-12:30" data-person="DB"></div><div class="schedule-cell" data-day="friday" data-slot="12:00-12:30" data-person="LV"></div><div class="schedule-cell" data-day="friday" data-slot="12:00-12:30" data-person="JS"></div><div class="schedule-cell" data-day="friday" data-slot="12:00-12:30" data-person="SB"></div><div class="schedule-cell" data-day="friday" data-slot="12:00-12:30" data-person="JM"></div><div class="schedule-cell" data-day="friday" data-slot="12:00-12:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="friday" data-slot="12:30-13:00" data-person="KL"></div><div class="schedule-cell" data-day="friday" data-slot="12:30-13:00" data-person="CJ"></div><div class="schedule-cell" data-day="friday" data-slot="12:30-13:00" data-person="CF"></div><div class="schedule-cell" data-day="friday" data-slot="12:30-13:00" data-person="IR"></div><div class="schedule-cell" data-day="friday" data-slot="12:30-13:00" data-person="HF"></div><div class="schedule-cell" data-day="friday" data-slot="12:30-13:00" data-person="RD"></div><div class="schedule-cell" data-day="friday" data-slot="12:30-13:00" data-person="KO"></div><div class="schedule-cell" data-day="friday" data-slot="12:30-13:00" data-person="MV"></div><div class="schedule-cell" data-day="friday" data-slot="12:30-13:00" data-person="DB"></div><div class="schedule-cell" data-day="friday" data-slot="12:30-13:00" data-person="LV"></div><div class="schedule-cell" data-day="friday" data-slot="12:30-13:00" data-person="JS"></div><div class="schedule-cell" data-day="friday" data-slot="12:30-13:00" data-person="SB"></div><div class="schedule-cell" data-day="friday" data-slot="12:30-13:00" data-person="JM"></div><div class="schedule-cell" data-day="friday" data-slot="12:30-13:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="friday" data-slot="13:00-13:30" data-person="KL"></div><div class="schedule-cell" data-day="friday" data-slot="13:00-13:30" data-person="CJ"></div><div class="schedule-cell" data-day="friday" data-slot="13:00-13:30" data-person="CF"></div><div class="schedule-cell" data-day="friday" data-slot="13:00-13:30" data-person="IR"></div><div class="schedule-cell" data-day="friday" data-slot="13:00-13:30" data-person="HF"></div><div class="schedule-cell" data-day="friday" data-slot="13:00-13:30" data-person="RD"></div><div class="schedule-cell" data-day="friday" data-slot="13:00-13:30" data-person="KO"></div><div class="schedule-cell" data-day="friday" data-slot="13:00-13:30" data-person="MV"></div><div class="schedule-cell" data-day="friday" data-slot="13:00-13:30" data-person="DB"></div><div class="schedule-cell" data-day="friday" data-slot="13:00-13:30" data-person="LV"></div><div class="schedule-cell" data-day="friday" data-slot="13:00-13:30" data-person="JS"></div><div class="schedule-cell" data-day="friday" data-slot="13:00-13:30" data-person="SB"></div><div class="schedule-cell" data-day="friday" data-slot="13:00-13:30" data-person="JM"></div><div class="schedule-cell" data-day="friday" data-slot="13:00-13:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="friday" data-slot="13:30-14:00" data-person="KL"></div><div class="schedule-cell" data-day="friday" data-slot="13:30-14:00" data-person="CJ"></div><div class="schedule-cell" data-day="friday" data-slot="13:30-14:00" data-person="CF"></div><div class="schedule-cell" data-day="friday" data-slot="13:30-14:00" data-person="IR"></div><div class="schedule-cell" data-day="friday" data-slot="13:30-14:00" data-person="HF"></div><div class="schedule-cell" data-day="friday" data-slot="13:30-14:00" data-person="RD"></div><div class="schedule-cell" data-day="friday" data-slot="13:30-14:00" data-person="KO"></div><div class="schedule-cell" data-day="friday" data-slot="13:30-14:00" data-person="MV"></div><div class="schedule-cell" data-day="friday" data-slot="13:30-14:00" data-person="DB"></div><div class="schedule-cell" data-day="friday" data-slot="13:30-14:00" data-person="LV"></div><div class="schedule-cell" data-day="friday" data-slot="13:30-14:00" data-person="JS"></div><div class="schedule-cell" data-day="friday" data-slot="13:30-14:00" data-person="SB"></div><div class="schedule-cell" data-day="friday" data-slot="13:30-14:00" data-person="JM"></div><div class="schedule-cell" data-day="friday" data-slot="13:30-14:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="friday" data-slot="14:00-14:30" data-person="KL"></div><div class="schedule-cell" data-day="friday" data-slot="14:00-14:30" data-person="CJ"></div><div class="schedule-cell" data-day="friday" data-slot="14:00-14:30" data-person="CF"></div><div class="schedule-cell" data-day="friday" data-slot="14:00-14:30" data-person="IR"></div><div class="schedule-cell" data-day="friday" data-slot="14:00-14:30" data-person="HF"></div><div class="schedule-cell" data-day="friday" data-slot="14:00-14:30" data-person="RD"></div><div class="schedule-cell" data-day="friday" data-slot="14:00-14:30" data-person="KO"></div><div class="schedule-cell" data-day="friday" data-slot="14:00-14:30" data-person="MV"></div><div class="schedule-cell" data-day="friday" data-slot="14:00-14:30" data-person="DB"></div><div class="schedule-cell" data-day="friday" data-slot="14:00-14:30" data-person="LV"></div><div class="schedule-cell" data-day="friday" data-slot="14:00-14:30" data-person="JS"></div><div class="schedule-cell" data-day="friday" data-slot="14:00-14:30" data-person="SB"></div><div class="schedule-cell" data-day="friday" data-slot="14:00-14:30" data-person="JM"></div><div class="schedule-cell" data-day="friday" data-slot="14:00-14:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="friday" data-slot="14:30-15:00" data-person="KL"></div><div class="schedule-cell" data-day="friday" data-slot="14:30-15:00" data-person="CJ"></div><div class="schedule-cell" data-day="friday" data-slot="14:30-15:00" data-person="CF"></div><div class="schedule-cell" data-day="friday" data-slot="14:30-15:00" data-person="IR"></div><div class="schedule-cell" data-day="friday" data-slot="14:30-15:00" data-person="HF"></div><div class="schedule-cell" data-day="friday" data-slot="14:30-15:00" data-person="RD"></div><div class="schedule-cell" data-day="friday" data-slot="14:30-15:00" data-person="KO"></div><div class="schedule-cell" data-day="friday" data-slot="14:30-15:00" data-person="MV"></div><div class="schedule-cell" data-day="friday" data-slot="14:30-15:00" data-person="DB"></div><div class="schedule-cell" data-day="friday" data-slot="14:30-15:00" data-person="LV"></div><div class="schedule-cell" data-day="friday" data-slot="14:30-15:00" data-person="JS"></div><div class="schedule-cell" data-day="friday" data-slot="14:30-15:00" data-person="SB"></div><div class="schedule-cell" data-day="friday" data-slot="14:30-15:00" data-person="JM"></div><div class="schedule-cell" data-day="friday" data-slot="14:30-15:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="friday" data-slot="15:00-15:30" data-person="KL"></div><div class="schedule-cell" data-day="friday" data-slot="15:00-15:30" data-person="CJ"></div><div class="schedule-cell" data-day="friday" data-slot="15:00-15:30" data-person="CF"></div><div class="schedule-cell" data-day="friday" data-slot="15:00-15:30" data-person="IR"></div><div class="schedule-cell" data-day="friday" data-slot="15:00-15:30" data-person="HF"></div><div class="schedule-cell" data-day="friday" data-slot="15:00-15:30" data-person="RD"></div><div class="schedule-cell" data-day="friday" data-slot="15:00-15:30" data-person="KO"></div><div class="schedule-cell" data-day="friday" data-slot="15:00-15:30" data-person="MV"></div><div class="schedule-cell" data-day="friday" data-slot="15:00-15:30" data-person="DB"></div><div class="schedule-cell" data-day="friday" data-slot="15:00-15:30" data-person="LV"></div><div class="schedule-cell" data-day="friday" data-slot="15:00-15:30" data-person="JS"></div><div class="schedule-cell" data-day="friday" data-slot="15:00-15:30" data-person="SB"></div><div class="schedule-cell" data-day="friday" data-slot="15:00-15:30" data-person="JM"></div><div class="schedule-cell" data-day="friday" data-slot="15:00-15:30" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="friday" data-slot="15:30-16:00" data-person="KL"></div><div class="schedule-cell" data-day="friday" data-slot="15:30-16:00" data-person="CJ"></div><div class="schedule-cell" data-day="friday" data-slot="15:30-16:00" data-person="CF"></div><div class="schedule-cell" data-day="friday" data-slot="15:30-16:00" data-person="IR"></div><div class="schedule-cell" data-day="friday" data-slot="15:30-16:00" data-person="HF"></div><div class="schedule-cell" data-day="friday" data-slot="15:30-16:00" data-person="RD"></div><div class="schedule-cell" data-day="friday" data-slot="15:30-16:00" data-person="KO"></div><div class="schedule-cell" data-day="friday" data-slot="15:30-16:00" data-person="MV"></div><div class="schedule-cell" data-day="friday" data-slot="15:30-16:00" data-person="DB"></div><div class="schedule-cell" data-day="friday" data-slot="15:30-16:00" data-person="LV"></div><div class="schedule-cell" data-day="friday" data-slot="15:30-16:00" data-person="JS"></div><div class="schedule-cell" data-day="friday" data-slot="15:30-16:00" data-person="SB"></div><div class="schedule-cell" data-day="friday" data-slot="15:30-16:00" data-person="JM"></div><div class="schedule-cell" data-day="friday" data-slot="15:30-16:00" data-person="SC"></div></div><div class="schedule-row" style="grid-template-columns: repeat(14, 1fr);"><div class="schedule-cell" data-day="friday" data-slot="16:00-16:30" data-person="KL"></div><div class="schedule-cell" data-day="friday" data-slot="16:00-16:30" data-person="CJ"></div><div class="schedule-cell" data-day="friday" data-slot="16:00-16:30" data-person="CF"></div><div class="schedule-cell" data-day="friday" data-slot="16:00-16:30" data-person="IR"></div><div class="schedule-cell" data-day="friday" data-slot="16:00-16:30" data-person="HF"></div><div class="schedule-cell" data-day="friday" data-slot="16:00-16:30" data-person="RD"></div><div class="schedule-cell" data-day="friday" data-slot="16:00-16:30" data-person="KO"></div><div class="schedule-cell" data-day="friday" data-slot="16:00-16:30" data-person="MV"></div><div class="schedule-cell" data-day="friday" data-slot="16:00-16:30" data-person="DB"></div><div class="schedule-cell" data-day="friday" data-slot="16:00-16:30" data-person="LV"></div><div class="schedule-cell" data-day="friday" data-slot="16:00-16:30" data-person="JS"></div><div class="schedule-cell" data-day="friday" data-slot="16:00-16:30" data-person="SB"></div><div class="schedule-cell" data-day="friday" data-slot="16:00-16:30" data-person="JM"></div><div class="schedule-cell" data-day="friday" data-slot="16:00-16:30" data-person="SC"></div></div></div></div>
+
+                    <!-- Right Time Gutter -->
+                    <div class="time-gutter">
+                        <div class="time-label"></div>
+                        <div class="time-label"></div>
+                        <div class="time-label">8:30-9:00</div>
+                        <div class="time-label">9:00-9:30</div>
+                        <div class="time-label">9:30-10:00</div>
+                        <div class="time-label">10:00-10:30</div>
+                        <div class="time-label">10:30-11:00</div>
+                        <div class="time-label">11:00-11:30</div>
+                        <div class="time-label">11:30-12:00</div>
+                        <div class="time-label">12:00-12:30</div>
+                        <div class="time-label">12:30-1:00</div>
+                        <div class="time-label">1:00-1:30</div>
+                        <div class="time-label">1:30-2:00</div>
+                        <div class="time-label">2:00-2:30</div>
+                        <div class="time-label">2:30-3:00</div>
+                        <div class="time-label">3:00-3:30</div>
+                        <div class="time-label">3:30-4:00</div>
+                        <div class="time-label">4:00-4:30</div>
+                    </div>
+                </div>
+
+                <div class="totals-section">
+                    <div class="totals-title">HOUR TOTALS</div>
+                    <table class="totals-table" id="totalsTable">
+                                             <thead>
+                         <tr>
+                             <th style="min-width: 120px;">Student</th>
+                             <th>Monday</th>
+                             <th>Tuesday</th>
+                             <th>Wednesday</th>
+                             <th>Thursday</th>
+                             <th>Friday</th>
+                             <th>Weekly Total</th>
+                         </tr>
+                     </thead>
+                    <tbody id="totalsBody"><tr draggable="true" data-index="0" class="student-row"><td class="student-name" title="Click to edit Kiran Lutchman | Drag to reorder" style="cursor: pointer;">Kiran Lutchman PA</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td class="total-cell">0.00</td></tr><tr draggable="true" data-index="1" class="student-row"><td class="student-name" title="Click to edit Calcea Johnson | Drag to reorder" style="cursor: pointer;">Calcea Johnson PA</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td class="total-cell">0.00</td></tr><tr draggable="true" data-index="2" class="student-row"><td class="student-name" title="Click to edit Colin Frey | Drag to reorder" style="cursor: pointer;">Colin Frey WS</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td class="total-cell">0.00</td></tr><tr draggable="true" data-index="3" class="student-row"><td class="student-name" title="Click to edit Ian Robertson | Drag to reorder" style="cursor: pointer;">Ian Robertson WS</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td class="total-cell">0.00</td></tr><tr draggable="true" data-index="4" class="student-row"><td class="student-name" title="Click to edit Heidi Faustermann | Drag to reorder" style="cursor: pointer;">Heidi Faustermann WS</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td class="total-cell">0.00</td></tr><tr draggable="true" data-index="5" class="student-row"><td class="student-name" title="Click to edit Rohan Durgam | Drag to reorder" style="cursor: pointer;">Rohan Durgam GA</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td class="total-cell">0.00</td></tr><tr draggable="true" data-index="6" class="student-row"><td class="student-name" title="Click to edit Kelvin O'Young | Drag to reorder" style="cursor: pointer;">Kelvin O'Young WS</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td class="total-cell">0.00</td></tr><tr draggable="true" data-index="7" class="student-row"><td class="student-name" title="Click to edit Michael Vasquez | Drag to reorder" style="cursor: pointer;">Michael Vasquez WS</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td class="total-cell">0.00</td></tr><tr draggable="true" data-index="8" class="student-row"><td class="student-name" title="Click to edit Devin Beltz | Drag to reorder" style="cursor: pointer;">Devin Beltz WS</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td class="total-cell">0.00</td></tr><tr draggable="true" data-index="9" class="student-row"><td class="student-name" title="Click to edit Lauren Vaught | Drag to reorder" style="cursor: pointer;">Lauren Vaught WS</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td class="total-cell">0.00</td></tr><tr draggable="true" data-index="10" class="student-row"><td class="student-name" title="Click to edit Jessica Peres | Drag to reorder" style="cursor: pointer;">Jessica Peres WS</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td class="total-cell">0.00</td></tr><tr draggable="true" data-index="11" class="student-row"><td class="student-name" title="Click to edit Sarah Bedel | Drag to reorder" style="cursor: pointer;">Sarah Bedel WS</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td class="total-cell">0.00</td></tr><tr draggable="true" data-index="12" class="student-row"><td class="student-name" title="Click to edit Jacob Mills | Drag to reorder" style="cursor: pointer;">Jacob Mills WS</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td class="total-cell">0.00</td></tr><tr draggable="true" data-index="13" class="student-row"><td class="student-name" title="Click to edit Scottie Burgess | Drag to reorder" style="cursor: pointer;">Scottie Burgess WS</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td class="total-cell">0.00</td></tr><tr class="grand-total"><td>DAILY TOTALS</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td></tr></tbody>
+                </table>
+            </div>
+
+            <div class="role-requirements-section">
+
+
+                <div class="role-requirements-grid">
+                    <div class="role-requirement">
+                        <span class="role-label">PA (President's Aid):</span>
+                        <span class="role-hours">6 hours per week</span>
+                    </div>
+                    <div class="role-requirement">
+                        <span class="role-label">WS (Work Study):</span>
+                        <span class="role-hours">12 hours per week</span>
+                    </div>
+                    <div class="role-requirement">
+                        <span class="role-label">GA (Graduate Assistant):</span>
+                        <span class="role-hours">Variable hours</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-controls">
+            <button class="admin-btn save" onclick="saveSchedule()">Save Schedule</button>
+            <button class="admin-btn load" onclick="loadSchedule()">Load Schedule</button>
+            <button class="admin-btn clear" onclick="clearTimes()">Clear Times</button>
+            <button class="admin-btn export" onclick="exportToPDF()">Export to PDF</button>
+            <button class="admin-btn" onclick="downloadUpdatedFile()" style="background: #8b5cf6;">Download Updated File</button>
+            <button class="admin-btn" onclick="copyCodeToClipboard()" style="background: #f59e0b;">Copy Code</button>
+            <button class="admin-btn" onclick="openAddStudentModal()" style="background: #10b981;">+ Add Student</button>
+        </div>
+    </div>
+
+    <!-- Add Student Modal -->
+    <div id="addStudentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">Add New Student</span>
+                <span class="close" onclick="closeAddStudentModal()">×</span>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="studentNameInput" placeholder="Enter student name" onkeypress="handleStudentNameKeypress(event)">
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn secondary" onclick="closeAddStudentModal()">Cancel</button>
+                <button class="modal-btn primary" onclick="addStudentFromModal()">Add Student</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data model as specified in GPT Description.md
+                const people = [
+        {
+                "code": "KL",
+                "name": "Kiran Lutchman",
+                "role": "PA",
+                "color": "kl"
+        },
+        {
+                "code": "CJ",
+                "name": "Calcea Johnson",
+                "role": "PA",
+                "color": "cj"
+        },
+        {
+                "code": "CF",
+                "name": "Colin Frey",
+                "role": "WS",
+                "color": "cf"
+        },
+        {
+                "code": "IR",
+                "name": "Ian Robertson",
+                "role": "WS",
+                "color": "ir"
+        },
+        {
+                "code": "HF",
+                "name": "Heidi Faustermann",
+                "role": "WS",
+                "color": "hf"
+        },
+        {
+                "code": "RD",
+                "name": "Rohan Durgam",
+                "role": "GA",
+                "color": "rd"
+        },
+        {
+                "code": "KO",
+                "name": "Kelvin O'Young",
+                "role": "WS",
+                "color": "ko"
+        },
+        {
+                "code": "MV",
+                "name": "Michael Vasquez",
+                "role": "WS",
+                "color": "mv"
+        },
+        {
+                "code": "DB",
+                "name": "Devin Beltz",
+                "role": "WS",
+                "color": "db"
+        },
+        {
+                "code": "LV",
+                "name": "Lauren Vaught",
+                "role": "WS",
+                "color": "lv"
+        },
+        {
+                "code": "JS",
+                "name": "Jessica Peres",
+                "role": "WS",
+                "color": "js"
+        },
+        {
+                "code": "SB",
+                "name": "Sarah Bedel",
+                "role": "WS",
+                "color": "sb"
+        },
+        {
+                "code": "JM",
+                "name": "Jacob Mills",
+                "role": "WS",
+                "color": "jm"
+        },
+        {
+                "code": "SC",
+                "name": "Scottie Burgess",
+                "role": "WS",
+                "color": "sc"
+        }
+];
+
+        const timeSlots = [
+            "08:30-09:00", "09:00-09:30", "09:30-10:00", "10:00-10:30",
+            "10:30-11:00", "11:00-11:30", "11:30-12:00", "12:00-12:30",
+            "12:30-13:00", "13:00-13:30", "13:30-14:00", "14:00-14:30",
+            "14:30-15:00", "15:00-15:30", "15:30-16:00", "16:00-16:30"
+        ];
+
+        const days = ["monday", "tuesday", "wednesday", "thursday", "friday"];
+        
+        // Schedule data: day-timeSlot-personCode -> boolean
+        let schedule = {};
+        
+        // Sample data from Excel (matching the totals shown)
+                const sampleSchedule = {};
+
+        function initializeSchedule() {
+            // Clear any old cached data to avoid conflicts with updated names/codes
+            localStorage.removeItem('studentWorkerPeople');
+            
+            // Load schedule data if it exists, otherwise use sample data
+            const savedSchedule = localStorage.getItem('studentWorkerSchedule');
+            
+            if (savedSchedule) {
+                schedule = JSON.parse(savedSchedule);
+                
+                // Migrate any old "S" code schedule entries to "SC" code
+                Object.keys(schedule).forEach(key => {
+                    if (key.includes('-S')) {
+                        const newKey = key.replace('-S', '-SC');
+                        schedule[newKey] = schedule[key];
+                        delete schedule[key];
+                    }
+                });
+            } else {
+                schedule = { ...sampleSchedule };
+            }
+            
+            // Always use the current people array (no merging with old data)
+            people.length = 0;
+            people.push(
+                { code: "KL", name: "Kiran Lutchman", role: "PA", color: "kl" },
+                { code: "CJ", name: "Calcea Johnson", role: "PA", color: "cj" },
+                { code: "CF", name: "Colin Frey", role: "WS", color: "cf" },
+                { code: "IR", name: "Ian Robertson", role: "WS", color: "ir" },
+                { code: "HF", name: "Heidi Faustermann", role: "WS", color: "hf" },
+                { code: "RD", name: "Rohan Durgam", role: "GA", color: "rd" },
+                { code: "KO", name: "Kelvin O'Young", role: "WS", color: "ko" },
+                { code: "MV", name: "Michael Vasquez", role: "WS", color: "mv" },
+                { code: "DB", name: "Devin Beltz", role: "WS", color: "db" },
+                { code: "LV", name: "Lauren Vaught", role: "WS", color: "lv" },
+                { code: "JS", name: "Jessica Peres", role: "WS", color: "js" },
+                { code: "SB", name: "Sarah Bedel", role: "WS", color: "sb" },
+                { code: "JM", name: "Jacob Mills", role: "WS", color: "jm" },
+                { code: "SC", name: "Scottie Burgess", role: "WS", color: "sc" }
+            );
+            
+            renderWeekGrid();
+            renderTotalsTable();
+        }
+
+        function renderWeekGrid() {
+            const weekGrid = document.getElementById('weekGrid');
+            weekGrid.innerHTML = '';
+
+            // Calculate dynamic lane width based on number of students
+            const numStudents = people.length;
+            const maxStudentsPerRow = 16;
+            
+            // Use 1fr to make columns dynamically fill available space
+            const gridColumns = `repeat(${numStudents}, 1fr)`;
+
+            days.forEach(day => {
+                const dayBlock = document.createElement('div');
+                dayBlock.className = 'day-block';
+
+                // Day header
+                const dayHeader = document.createElement('div');
+                dayHeader.className = 'day-header';
+                dayHeader.textContent = day.toUpperCase();
+                dayBlock.appendChild(dayHeader);
+
+                // Legend row
+                const legendRow = document.createElement('div');
+                legendRow.className = 'legend-row';
+                legendRow.style.gridTemplateColumns = gridColumns;
+                people.forEach(person => {
+                    const legendCell = document.createElement('div');
+                    legendCell.className = `legend-cell ${person.color}`;
+                    legendCell.textContent = person.code;
+                    legendRow.appendChild(legendCell);
+                });
+                dayBlock.appendChild(legendRow);
+
+                // Schedule rows
+                timeSlots.forEach((slot, slotIndex) => {
+                    const scheduleRow = document.createElement('div');
+                    scheduleRow.className = 'schedule-row';
+                    scheduleRow.style.gridTemplateColumns = gridColumns;
+                    
+                    people.forEach(person => {
+                        const scheduleCell = document.createElement('div');
+                        scheduleCell.className = 'schedule-cell';
+                        scheduleCell.dataset.day = day;
+                        scheduleCell.dataset.slot = slot;
+                        scheduleCell.dataset.person = person.code;
+                        
+                        const key = `${day}-${slot}-${person.code}`;
+                        if (schedule[key]) {
+                            scheduleCell.classList.add(person.color);
+                        }
+                        
+                        scheduleCell.addEventListener('click', () => toggleSchedule(day, slot, person.code));
+                        scheduleRow.appendChild(scheduleCell);
+                    });
+                    
+                    dayBlock.appendChild(scheduleRow);
+                });
+
+                weekGrid.appendChild(dayBlock);
+            });
+        }
+
+        function toggleSchedule(day, slot, personCode) {
+            const key = `${day}-${slot}-${personCode}`;
+            if (schedule[key]) {
+                delete schedule[key];
+            } else {
+                schedule[key] = true;
+            }
+            
+            renderWeekGrid();
+            renderTotalsTable();
+            
+            // Auto-save after each change (optional - you can remove this if you prefer manual saving)
+            // saveSchedule();
+        }
+
+        function renderTotalsTable() {
+            const tbody = document.getElementById('totalsBody');
+            tbody.innerHTML = '';
+
+            people.forEach((person, index) => {
+                const row = document.createElement('tr');
+                row.draggable = true;
+                row.dataset.index = index;
+                row.className = 'student-row';
+                
+                // Add drag event listeners
+                row.addEventListener('dragstart', handleDragStart);
+                row.addEventListener('dragover', handleDragOver);
+                row.addEventListener('drop', handleDrop);
+                row.addEventListener('dragend', handleDragEnd);
+                
+                console.log(`Added drag listeners to row ${index} for ${person.name}`);
+                
+                // Student name (clickable for editing)
+                const nameCell = document.createElement('td');
+                nameCell.className = 'student-name';
+                nameCell.textContent = `${person.name} ${person.role}`;
+                nameCell.title = `Click to edit ${person.name} | Drag to reorder`;
+                nameCell.style.cursor = 'pointer';
+                nameCell.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent drag from interfering with click
+                    editStudent(index);
+                });
+                row.appendChild(nameCell);
+
+                // Daily totals
+                let weeklyTotal = 0;
+                days.forEach(day => {
+                    const cell = document.createElement('td');
+                    let dayTotal = 0;
+                    
+                    timeSlots.forEach(slot => {
+                        const key = `${day}-${slot}-${person.code}`;
+                        if (schedule[key]) {
+                            dayTotal += 0.5; // Each slot = 0.5 hours
+                        }
+                    });
+                    
+                    weeklyTotal += dayTotal;
+                    cell.textContent = dayTotal.toFixed(2);
+                    row.appendChild(cell);
+                });
+
+                // Weekly total
+                const totalCell = document.createElement('td');
+                totalCell.className = 'total-cell';
+                totalCell.textContent = weeklyTotal.toFixed(2);
+                row.appendChild(totalCell);
+
+                tbody.appendChild(row);
+            });
+
+            // Grand total row
+            const grandTotalRow = document.createElement('tr');
+            grandTotalRow.className = 'grand-total';
+            
+            const grandTotalLabel = document.createElement('td');
+            grandTotalLabel.textContent = 'DAILY TOTALS';
+            grandTotalRow.appendChild(grandTotalLabel);
+
+            let grandTotal = 0;
+            days.forEach(day => {
+                const cell = document.createElement('td');
+                let dayTotal = 0;
+                
+                people.forEach(person => {
+                    timeSlots.forEach(slot => {
+                        const key = `${day}-${slot}-${person.code}`;
+                        if (schedule[key]) {
+                            dayTotal += 0.5;
+                        }
+                    });
+                });
+                
+                grandTotal += dayTotal;
+                cell.textContent = dayTotal.toFixed(2);
+                grandTotalRow.appendChild(cell);
+            });
+
+            const grandTotalCell = document.createElement('td');
+            grandTotalCell.textContent = grandTotal.toFixed(2);
+            grandTotalRow.appendChild(grandTotalCell);
+
+            tbody.appendChild(grandTotalRow);
+        }
+
+        function addStudent() {
+            const name = document.getElementById('studentName').value.trim();
+
+            if (!name) {
+                alert('Please enter a student name');
+                return;
+            }
+
+            // Generate initials from name (first letter of each word)
+            const initials = name.split(' ')
+                .map(word => word.charAt(0).toUpperCase())
+                .join('')
+                .substring(0, 3); // Limit to 3 characters
+
+            if (people.some(p => p.code === initials)) {
+                alert(`Initials "${initials}" are already in use. Please use a different name or remove the existing student first.`);
+                return;
+            }
+
+            // Generate a new color for the student
+            const newColor = generateNewColor();
+            
+            // Add new student
+            people.push({
+                code: initials,
+                name: name,
+                role: "",
+                color: newColor
+            });
+
+            // Clear form
+            document.getElementById('studentName').value = '';
+
+            // Re-render the grid with new student
+            renderWeekGrid();
+            renderTotalsTable();
+        }
+
+        function generateNewColor() {
+            // Use the beautiful earth-toned color system (18 colors)
+            const earthTonedColors = [
+                'kl', 'cj', 'cf', 'ir', 'hf', 'rd', 'ko', 'mv', 'db', 'lv', 'js', 'sb', 'jm', 'sc',
+                'student-15', 'student-16', 'student-17', 'student-18'
+            ];
+            
+            // If we're within the earth-toned range, use predefined colors
+            if (people.length < earthTonedColors.length) {
+                return earthTonedColors[people.length];
+            }
+            
+            // For students beyond 18, generate earth-toned colors dynamically
+            const hue = (people.length * 20) % 360; // 20° spacing for good distribution
+            const saturation = 55 + (people.length % 20); // 55-75% for earth tones
+            const lightness = 40 + (people.length % 15); // 40-55% for sophistication
+            
+            const colorName = `student-${people.length}`;
+            
+            // Add CSS variable for the new earth-toned color
+            const style = document.createElement('style');
+            style.textContent = `
+                .schedule-cell.${colorName}, .legend-cell.${colorName} {
+                    background: hsl(${hue}, ${saturation}%, ${lightness}%);
+                }
+            `;
+            document.head.appendChild(style);
+            
+            return colorName;
+        }
+
+        function autoCalculateHours() {
+            // Hours are already calculated automatically from the schedule
+            alert('Hours are automatically calculated from the schedule grid!');
+        }
+
+        function editStudent(index) {
+            const person = people[index];
+            const action = prompt(`Options for ${person.name}:\n1. Edit name\n2. Edit role\n3. Remove student\n\nEnter 1, 2, or 3:`, '1');
+            
+            if (action === '1') {
+                const newName = prompt(`Edit name for ${person.name}:`, person.name);
+                
+                if (newName && newName.trim() !== '') {
+                    const oldName = person.name;
+                    person.name = newName.trim();
+                    
+                    // Update initials if they were auto-generated from the old name
+                    const oldInitials = oldName.split(' ').map(word => word.charAt(0).toUpperCase()).join('').substring(0, 3);
+                    if (person.code === oldInitials) {
+                        // Auto-update initials to match new name
+                        const newInitials = newName.split(' ').map(word => word.charAt(0).toUpperCase()).join('').substring(0, 3);
+                        person.code = newInitials;
+                    }
+                    
+                    renderWeekGrid();
+                    renderTotalsTable();
+                }
+            } else if (action === '2') {
+                const roleOptions = prompt(`Edit role for ${person.name}:\n\nAvailable roles:\n- PA (President's Aid)\n- WS (Work Study)\n- GA (Graduate Assistant)\n\nCurrent role: ${person.role}\n\nEnter new role (PA, WS, or GA):`, person.role);
+                
+                if (roleOptions && ['PA', 'WS', 'GA'].includes(roleOptions.toUpperCase())) {
+                    person.role = roleOptions.toUpperCase();
+                    renderWeekGrid();
+                    renderTotalsTable();
+                } else if (roleOptions !== null) {
+                    alert('Invalid role. Please enter PA, WS, or GA.');
+                }
+            } else if (action === '3') {
+                removeStudent(index);
+            }
+        }
+
+        function removeStudent(index) {
+            if (confirm(`Remove ${people[index].name} and all their scheduled hours?`)) {
+                // Remove all schedule entries for this student
+                const studentCode = people[index].code;
+                Object.keys(schedule).forEach(key => {
+                    if (key.includes(`-${studentCode}`)) {
+                        delete schedule[key];
+                    }
+                });
+                
+                // Remove student from people array
+                people.splice(index, 1);
+                
+                // Re-render everything
+                renderWeekGrid();
+                renderTotalsTable();
+            }
+        }
+
+        function saveSchedule() {
+            localStorage.setItem('studentWorkerSchedule', JSON.stringify(schedule));
+            localStorage.setItem('studentWorkerPeople', JSON.stringify(people));
+            alert('Schedule saved successfully! It will persist until you clear your browser data or manually clear the schedule.');
+        }
+
+        function loadSchedule() {
+            const savedSchedule = localStorage.getItem('studentWorkerSchedule');
+            const savedPeople = localStorage.getItem('studentWorkerPeople');
+            
+            if (savedSchedule && savedPeople) {
+                schedule = JSON.parse(savedSchedule);
+                const savedPeopleData = JSON.parse(savedPeople);
+                people.length = 0; // Clear array
+                savedPeopleData.forEach(person => people.push(person));
+                renderWeekGrid();
+                renderTotalsTable();
+                alert('Schedule loaded successfully!');
+            } else {
+                alert('No saved schedule found.');
+            }
+        }
+
+        function clearTimes() {
+            if (confirm('Clear all scheduled times? This will keep all students but remove their scheduled hours.')) {
+                schedule = {};
+                renderWeekGrid();
+                renderTotalsTable();
+            }
+        }
+
+        function clearSchedule() {
+            if (confirm('Clear all schedule data? This will also clear any saved schedule.')) {
+                schedule = {};
+                localStorage.removeItem('studentWorkerSchedule');
+                localStorage.removeItem('studentWorkerPeople');
+                renderWeekGrid();
+                renderTotalsTable();
+            }
+        }
+
+        // Drag and drop functionality for reordering students
+        let draggedElement = null;
+
+        function handleDragStart(e) {
+            console.log('Drag start:', e.target);
+            draggedElement = e.target;
+            e.target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', e.target.outerHTML);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            
+            // Find the target row (handle drag over cells)
+            let targetRow = e.target;
+            while (targetRow && !targetRow.classList.contains('student-row')) {
+                targetRow = targetRow.parentElement;
+            }
+            
+            // Add visual feedback for drop target
+            if (targetRow && targetRow.classList.contains('student-row') && targetRow !== draggedElement) {
+                targetRow.classList.add('drag-over');
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            console.log('Drop event:', e.target);
+            
+            // Remove drag-over styling
+            document.querySelectorAll('.student-row').forEach(row => {
+                row.classList.remove('drag-over');
+            });
+            
+            // Find the target row (handle drops on cells)
+            let targetRow = e.target;
+            while (targetRow && !targetRow.classList.contains('student-row')) {
+                targetRow = targetRow.parentElement;
+            }
+            
+            if (draggedElement && targetRow && targetRow.classList.contains('student-row') && draggedElement !== targetRow) {
+                const draggedIndex = parseInt(draggedElement.dataset.index);
+                const targetIndex = parseInt(targetRow.dataset.index);
+                
+                console.log('Dragged index:', draggedIndex, 'Target index:', targetIndex);
+                
+                if (!isNaN(draggedIndex) && !isNaN(targetIndex) && draggedIndex !== targetIndex) {
+                    // Reorder the people array
+                    const [movedPerson] = people.splice(draggedIndex, 1);
+                    people.splice(targetIndex, 0, movedPerson);
+                    
+                    console.log('Reordered people array:', people.map(p => p.name));
+                    
+                    // Re-render both the grid and totals table
+                    renderWeekGrid();
+                    renderTotalsTable();
+                }
+            }
+        }
+
+        function handleDragEnd(e) {
+            console.log('Drag end:', e.target);
+            e.target.classList.remove('dragging');
+            
+            // Remove drag-over styling from all rows
+            document.querySelectorAll('.student-row').forEach(row => {
+                row.classList.remove('drag-over');
+            });
+            
+            draggedElement = null;
+        }
+
+        // PDF Export functionality
+        function exportToPDF() {
+            console.log('=== PDF EXPORT DEBUGGING START ===');
+            
+            // Debug: Check element selection
+            const header = document.querySelector('.header');
+            const adminControls = document.querySelector('.admin-controls');
+            const controls = document.querySelector('.controls');
+            const scheduleGrid = document.querySelector('.schedule-grid');
+            const totalsSection = document.querySelector('.totals-section');
+            
+            console.log('Element selection results:');
+            console.log('- Header found:', !!header, header ? header.textContent.trim() : 'NOT FOUND');
+            console.log('- Admin controls found:', !!adminControls);
+            console.log('- Controls found:', !!controls, controls ? controls.textContent.trim() : 'NOT FOUND');
+            console.log('- Schedule grid found:', !!scheduleGrid);
+            console.log('- Totals section found:', !!totalsSection);
+            
+            // Debug: Check what's in the controls section
+            if (controls) {
+                console.log('- Controls section contains:', controls.innerHTML.substring(0, 100) + '...');
+            }
+
+            // Store original styles to restore them later
+            const originalAdminDisplay = adminControls.style.display;
+            const originalControlsDisplay = controls.style.display;
+            const originalTotalsDisplay = totalsSection.style.display;
+            
+            console.log('Original display values:');
+            console.log('- Admin controls display:', originalAdminDisplay);
+            console.log('- Controls display:', originalControlsDisplay);
+
+            // --- HIDE UNWANTED ELEMENTS & PREPARE FOR CAPTURE ---
+            adminControls.style.display = 'none';
+            controls.style.display = 'none';
+            
+            console.log('Elements hidden. Display values after hiding:');
+            console.log('- Admin controls display:', adminControls.style.display);
+            console.log('- Controls display:', controls.style.display);
+
+            // Create a container for the header and schedule grid
+            const scheduleContainer = document.createElement('div');
+            scheduleContainer.style.width = '1400px'; // Increased width to prevent cutoff
+            scheduleContainer.style.padding = '0';
+            scheduleContainer.style.backgroundColor = 'white';
+            scheduleContainer.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+            
+            console.log('Schedule container created with width:', scheduleContainer.style.width);
+            
+            // Clone and add header
+            const headerClone = header.cloneNode(true);
+            headerClone.style.margin = '0';
+            headerClone.style.borderRadius = '0';
+            headerClone.style.padding = '20px 40px'; // Add horizontal padding for margin effect
+            scheduleContainer.appendChild(headerClone);
+            
+            console.log('Header cloned and added. Header clone content:', headerClone.textContent.trim());
+            console.log('Header clone styles:', {
+                margin: headerClone.style.margin,
+                borderRadius: headerClone.style.borderRadius,
+                display: headerClone.style.display,
+                visibility: headerClone.style.visibility
+            });
+            
+            // Clone and add schedule grid
+            const scheduleGridClone = scheduleGrid.cloneNode(true);
+            scheduleGridClone.style.padding = '20px';
+            scheduleGridClone.style.margin = '0';
+            scheduleContainer.appendChild(scheduleGridClone);
+            
+            // Add padding to the entire schedule container to match the web version
+            scheduleContainer.style.padding = '0 20px';
+            
+            console.log('Schedule grid cloned and added. Container now has', scheduleContainer.children.length, 'children');
+            
+            document.body.appendChild(scheduleContainer);
+            console.log('Schedule container added to body. Container dimensions:', {
+                width: scheduleContainer.offsetWidth,
+                height: scheduleContainer.offsetHeight,
+                scrollWidth: scheduleContainer.scrollWidth,
+                scrollHeight: scheduleContainer.scrollHeight
+            });
+
+            // Create a container for just the totals section
+            const totalsContainer = document.createElement('div');
+            totalsContainer.style.width = '1400px'; // Increased width to prevent cutoff
+            totalsContainer.style.padding = '20px';
+            totalsContainer.style.backgroundColor = 'white';
+            totalsContainer.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+            
+            // Add consistent padding to match the web version
+            totalsContainer.style.padding = '20px';
+            
+            console.log('Totals container created with width:', totalsContainer.style.width);
+            
+            // Clone and add header to totals page too
+            const headerClone2 = header.cloneNode(true);
+            headerClone2.style.margin = '0';
+            headerClone2.style.borderRadius = '0';
+            headerClone2.style.padding = '20px 40px'; // Add horizontal padding for margin effect
+            totalsContainer.appendChild(headerClone2);
+            
+            console.log('Second header cloned and added to totals container');
+            
+            // Clone and add totals section
+            const totalsSectionClone = totalsSection.cloneNode(true);
+            totalsSectionClone.style.margin = '0';
+            totalsSectionClone.style.borderTop = '3px solid #1e293b';
+            totalsSectionClone.style.paddingTop = '20px';
+            totalsContainer.appendChild(totalsSectionClone);
+            
+            console.log('Totals section cloned and added. Totals container now has', totalsContainer.children.length, 'children');
+            
+            document.body.appendChild(totalsContainer);
+            console.log('Totals container added to body. Container dimensions:', {
+                width: totalsContainer.offsetWidth,
+                height: totalsContainer.offsetHeight,
+                scrollWidth: totalsContainer.scrollWidth,
+                scrollHeight: totalsContainer.scrollHeight
+            });
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('landscape', 'mm', [279.4, 215.9]); // US Letter landscape
+
+            console.log('PDF document created. Page dimensions:', { width: 279.4, height: 215.9 });
+            console.log('About to capture schedule container with html2canvas...');
+
+            // Capture and add schedule grid to page 1
+            html2canvas(scheduleContainer, {
+                scale: 1.0, // Reduced scale to prevent oversized canvas
+                useCORS: true,
+                logging: true, // Enable logging for debugging
+                width: 1400,
+                height: scheduleContainer.scrollHeight
+            }).then(canvas1 => {
+                console.log('Schedule container captured successfully!');
+                console.log('Canvas 1 dimensions:', { width: canvas1.width, height: canvas1.height });
+                console.log('Canvas 1 aspect ratio:', canvas1.width / canvas1.height);
+                const imgData1 = canvas1.toDataURL('image/png');
+                
+                // Calculate dimensions for page 1
+                const canvasAspectRatio1 = canvas1.width / canvas1.height;
+                const pageAspectRatio = 279.4 / 215.9;
+                
+                let imgWidth1 = 279.4;
+                let imgHeight1 = 215.9;
+                
+                if (canvasAspectRatio1 > pageAspectRatio) {
+                    imgHeight1 = 279.4 / canvasAspectRatio1;
+                } else {
+                    imgWidth1 = 215.9 * canvasAspectRatio1;
+                }
+                
+                const x1 = (279.4 - imgWidth1) / 2;
+                const y1 = (215.9 - imgHeight1) / 2;
+                
+                doc.addImage(imgData1, 'PNG', x1, y1, imgWidth1, imgHeight1);
+                
+                // Add page 2 for totals
+                doc.addPage();
+                console.log('Page 2 added to PDF');
+                
+                // Capture and add totals table to page 2
+                console.log('About to capture totals container with html2canvas...');
+                return html2canvas(totalsContainer, {
+                    scale: 1.0, // Reduced scale to prevent oversized canvas
+                    useCORS: true,
+                    logging: true, // Enable logging for debugging
+                    width: 1400,
+                    height: totalsContainer.scrollHeight
+                });
+            }).then(canvas2 => {
+                console.log('Totals container captured successfully!');
+                console.log('Canvas 2 dimensions:', { width: canvas2.width, height: canvas2.height });
+                console.log('Canvas 2 aspect ratio:', canvas2.width / canvas2.height);
+                
+                const imgData2 = canvas2.toDataURL('image/png');
+                
+                // Calculate dimensions for page 2
+                const canvasAspectRatio2 = canvas2.width / canvas2.height;
+                const pageAspectRatio = 279.4 / 215.9;
+                
+                let imgWidth2 = 279.4;
+                let imgHeight2 = 215.9;
+                
+                if (canvasAspectRatio2 > pageAspectRatio) {
+                    imgHeight2 = 279.4 / canvasAspectRatio2;
+                } else {
+                    imgWidth2 = 215.9 * canvasAspectRatio2;
+                }
+                
+                const x2 = (279.4 - imgWidth2) / 2;
+                const y2 = (215.9 - imgHeight2) / 2;
+                
+                console.log('Page 2 image positioning:', { x: x2, y: y2, width: imgWidth2, height: imgHeight2 });
+                
+                doc.addImage(imgData2, 'PNG', x2, y2, imgWidth2, imgHeight2);
+                
+                // Save the PDF
+                const fileName = `student_schedule_${new Date().toISOString().split('T')[0]}.pdf`;
+                console.log('Saving PDF with filename:', fileName);
+                doc.save(fileName);
+            }).finally(() => {
+                console.log('=== PDF EXPORT CLEANUP ===');
+                
+                // --- RESTORE ORIGINAL STYLES ---
+                adminControls.style.display = originalAdminDisplay;
+                controls.style.display = originalControlsDisplay;
+                totalsSection.style.display = originalTotalsDisplay;
+                
+                console.log('Original styles restored');
+                
+                // Clean up temporary containers
+                document.body.removeChild(scheduleContainer);
+                document.body.removeChild(totalsContainer);
+                
+                console.log('Temporary containers removed');
+                console.log('=== PDF EXPORT DEBUGGING COMPLETE ===');
+            });
+        }
+
+        // Modal functions
+        function openAddStudentModal() {
+            document.getElementById('addStudentModal').style.display = 'block';
+            document.getElementById('studentNameInput').focus();
+        }
+
+        function closeAddStudentModal() {
+            document.getElementById('addStudentModal').style.display = 'none';
+            document.getElementById('studentNameInput').value = '';
+        }
+
+        function handleStudentNameKeypress(event) {
+            if (event.key === 'Enter') {
+                addStudentFromModal();
+            }
+        }
+
+        function addStudentFromModal() {
+            const name = document.getElementById('studentNameInput').value.trim();
+
+            if (!name) {
+                alert('Please enter a student name');
+                return;
+            }
+
+            // Generate initials from name (first letter of each word)
+            const initials = name.split(' ')
+                .map(word => word.charAt(0).toUpperCase())
+                .join('')
+                .substring(0, 3); // Limit to 3 characters
+
+            if (people.some(p => p.code === initials)) {
+                alert(`Initials "${initials}" are already in use. Please use a different name or remove the existing student first.`);
+                return;
+            }
+
+            // Generate a new color for the student
+            const newColor = generateNewColor();
+            
+            // Add new student
+            people.push({
+                code: initials,
+                name: name,
+                role: "",
+                color: newColor
+            });
+
+            // Close modal and clear form
+            closeAddStudentModal();
+
+            // Re-render the grid with new student
+            renderWeekGrid();
+            renderTotalsTable();
+        }
+
+        // File download and code copy functions
+        function downloadUpdatedFile() {
+            try {
+                // First, ensure we have the latest schedule data
+                console.log('Current schedule data:', schedule);
+                console.log('Current people data:', people);
+                
+                // Get the original HTML content from the current page
+                const originalHtml = document.documentElement.outerHTML;
+                
+                // Create a more robust replacement approach
+                let updatedHtml = originalHtml;
+                
+                // Replace the sampleSchedule object - handle both empty and populated schedules
+                const currentScheduleString = JSON.stringify(schedule, null, 8);
+                const scheduleRegex = /const sampleSchedule = \{[\s\S]*?\};/;
+                const updatedScheduleString = `        const sampleSchedule = ${currentScheduleString};`;
+                
+                if (scheduleRegex.test(updatedHtml)) {
+                    updatedHtml = updatedHtml.replace(scheduleRegex, updatedScheduleString);
+                    console.log('Schedule data replaced successfully');
+                    console.log('Replaced with:', updatedScheduleString);
+                } else {
+                    console.error('Could not find sampleSchedule in HTML');
+                    alert('Could not find schedule data in the HTML file. Please try again.');
+                    return;
+                }
+                
+                // Replace the people array
+                const currentPeopleString = JSON.stringify(people, null, 8);
+                const peopleRegex = /const people = \[[\s\S]*?\];/;
+                const updatedPeopleString = `        const people = ${currentPeopleString};`;
+                
+                if (peopleRegex.test(updatedHtml)) {
+                    updatedHtml = updatedHtml.replace(peopleRegex, updatedPeopleString);
+                    console.log('People data replaced successfully');
+                    console.log('Replaced with:', updatedPeopleString);
+                } else {
+                    console.error('Could not find people array in HTML');
+                    alert('Could not find people data in the HTML file. Please try again.');
+                    return;
+                }
+                
+                // Verify the replacements worked
+                if (!updatedHtml.includes(currentScheduleString) || !updatedHtml.includes(currentPeopleString)) {
+                    console.error('Data replacement verification failed');
+                    console.log('Looking for schedule string:', currentScheduleString);
+                    console.log('Looking for people string:', currentPeopleString);
+                    alert('Error: Data replacement failed. Please try again.');
+                    return;
+                }
+                
+                // Create and download the file
+                const blob = new Blob([updatedHtml], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `student_schedule_updated_${new Date().toISOString().split('T')[0]}.html`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                console.log('File downloaded successfully');
+                alert('Updated HTML file downloaded successfully! The file contains your current schedule data.');
+                
+            } catch (error) {
+                console.error('Error downloading file:', error);
+                alert('Error downloading file. Please try again. Error: ' + error.message);
+            }
+        }
+
+        function copyCodeToClipboard() {
+            try {
+                // Generate the schedule data as formatted JavaScript
+                const scheduleString = JSON.stringify(schedule, null, 8);
+                const peopleString = JSON.stringify(people, null, 8);
+                
+                const codeToCopy = `// Replace the existing sampleSchedule object with this:
+const sampleSchedule = ${scheduleString};
+
+// Replace the existing people array with this:
+const people = ${peopleString};`;
+                
+                // Copy to clipboard
+                navigator.clipboard.writeText(codeToCopy).then(() => {
+                    alert('Code copied to clipboard! Paste it into your HTML file to update the schedule data.');
+                }).catch(() => {
+                    // Fallback for older browsers
+                    const textArea = document.createElement('textarea');
+                    textArea.value = codeToCopy;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    alert('Code copied to clipboard! Paste it into your HTML file to update the schedule data.');
+                });
+                
+            } catch (error) {
+                console.error('Error copying code:', error);
+                alert('Error copying code to clipboard. Please try again.');
+            }
+        }
+
+        // Clear all scheduled hours
+        function clearAllHours() {
+            schedule = {};
+            renderWeekGrid();
+            renderTotalsTable();
+            console.log('All scheduled hours cleared');
+        }
+
+        // Initialize
+        initializeSchedule();
+    </script>
+
+
+</div></body></html>
