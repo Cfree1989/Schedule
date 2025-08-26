@@ -138,7 +138,7 @@
         const days=["monday","tuesday","wednesday","thursday","friday"];
         let schedule={};
         const sampleSchedule={};
-        let stateTracker={lastSaved:null,isDirty:false,saveQueue:[],autoSaveEnabled:true};
+        let stateTracker={lastSaved:null,isDirty:false,saveTimeout:null,autoSaveEnabled:true};
         let hybridData={trackedState:{},domVerification:{},metadata:{lastModified:null,version:'1.0',checksum:null}};
         async function loadPDFLibraries(){
             if(pdfLibrariesLoaded){return;}
@@ -156,12 +156,23 @@
                 pdfLibrariesLoaded = false;
                 throw error;
             }
+            const libraries=[
+                'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+                'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js',
+                'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
+            ];
+            for(const url of libraries){
+                await import(url);
+            }
+            const { jsPDF } = window.jspdf || {};
+            if(!jsPDF){throw new Error('jsPDF failed to initialize');}
+            window.jsPDF = jsPDF;
+            pdfLibrariesLoaded = true;
         }
         function initializeSchedule(){localStorage.removeItem('studentWorkerPeople');loadHybridSchedule();Object.keys(schedule).forEach(key=>{if(key.includes('-S')){const newKey=key.replace('-S','-SC');schedule[newKey]=schedule[key];delete schedule[key];}});people.length=0;people.push({code:"KL",name:"Kiran Lutchman",role:"PA",color:"kl"},{code:"CJ",name:"Calcea Johnson",role:"PA",color:"cj"},{code:"CF",name:"Colin Frey",role:"WS",color:"cf"},{code:"IR",name:"Ian Robertson",role:"WS",color:"ir"},{code:"HF",name:"Heidi Faustermann",role:"WS",color:"hf"},{code:"RD",name:"Rohan Durgam",role:"GA",color:"rd"},{code:"KO",name:"Kelvin O'Young",role:"WS",color:"ko"},{code:"MV",name:"Michael Vasquez",role:"WS",color:"mv"},{code:"DB",name:"Devin Beltz",role:"WS",color:"db"},{code:"LV",name:"Lauren Vaught",role:"WS",color:"lv"},{code:"JS",name:"Jessica Peres",role:"WS",color:"js"},{code:"SB",name:"Sarah Bedel",role:"WS",color:"sb"},{code:"JM",name:"Jacob Mills",role:"WS",color:"jm"},{code:"SC",name:"Scottie Burgess",role:"WS",color:"sc"});renderWeekGrid();renderTotalsTable();initializeStateTracking();}
-        function initializeStateTracking(){stateTracker.lastSaved=Date.now();stateTracker.isDirty=false;stateTracker.saveQueue=[];stateTracker.autoSaveEnabled=true;setupAutoSaveListeners();}
+        function initializeStateTracking(){stateTracker.lastSaved=Date.now();stateTracker.isDirty=false;stateTracker.saveTimeout=null;stateTracker.autoSaveEnabled=true;setupAutoSaveListeners();}
         function setupAutoSaveListeners(){const observer=new MutationObserver(()=>{if(stateTracker.autoSaveEnabled){queueAutoSave();}});const scheduleGrid=document.querySelector('.schedule-grid');if(scheduleGrid){observer.observe(scheduleGrid,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});}}
-        function queueAutoSave(){if(stateTracker.saveQueue.length===0){stateTracker.saveQueue.push(setTimeout(()=>{performAutoSave();},500));}}
-        function performAutoSave(){try{updateTrackedState();captureCurrentAssignments();saveHybridSchedule();stateTracker.lastSaved=Date.now();stateTracker.isDirty=false;}catch(error){console.error('Auto-save failed:',error);}}
+        function queueAutoSave(){clearTimeout(stateTracker.saveTimeout);stateTracker.saveTimeout=setTimeout(()=>{try{saveHybridSchedule();stateTracker.lastSaved=Date.now();stateTracker.isDirty=false;}catch(error){console.error('Auto-save failed:',error);}},500);}
         function updateTrackedState(){hybridData.trackedState={...schedule};hybridData.metadata.lastModified=Date.now();hybridData.metadata.checksum=generateChecksum(hybridData.trackedState);}
         function captureCurrentAssignments(){const domState={};const cells=document.querySelectorAll('.schedule-cell');cells.forEach(cell=>{const day=cell.parentElement.parentElement.querySelector('.day-header').textContent.toLowerCase();const timeSlot=cell.parentElement.querySelector('.time-label').textContent;const personCode=Array.from(cell.classList).find(cls=>cls!=='schedule-cell'&&cls!=='student-15'&&cls!=='student-16'&&cls!=='student-17'&&cls!=='student-18');if(personCode){const key=`${day}-${timeSlot}-${personCode}`;domState[key]=true;}});hybridData.domVerification=domState;return domState;}
         function restoreAssignments(data){let restoredCount=0;if(data.trackedState&&Object.keys(data.trackedState).length>0){Object.keys(data.trackedState).forEach(key=>{if(data.trackedState[key]){schedule[key]=true;restoredCount++;}});return restoredCount;}if(data.domVerification&&Object.keys(data.domVerification).length>0){Object.keys(data.domVerification).forEach(key=>{if(data.domVerification[key]){schedule[key]=true;restoredCount++;}});return restoredCount;}if(data.schedule&&Object.keys(data.schedule).length>0){Object.keys(data.schedule).forEach(key=>{if(data.schedule[key]){schedule[key]=true;restoredCount++;}});return restoredCount;}return restoredCount;}
@@ -196,6 +207,8 @@
             try{
                 await loadPDFLibraries();
                 if(!window.jsPDF||!window.html2canvas){throw new Error('PDF libraries unavailable');}
+                const { jsPDF } = window.jspdf || {};
+                if(!jsPDF){throw new Error('jsPDF failed to initialize');}
                 if(!header||!adminControls||!controls||!scheduleGrid||!totalsSection){alert('Required elements not found for PDF export');return;}
                 originalAdminDisplay=adminControls.style.display;
                 originalControlsDisplay=controls.style.display;
@@ -226,6 +239,7 @@
                 totalsContainer.appendChild(totalsSectionClone);
                 document.body.appendChild(totalsContainer);
                 const doc=new window.jsPDF('landscape','mm','a4');
+                const doc=new jsPDF('landscape','mm','a4');
                 const canvas1=await html2canvas(scheduleContainer,{scale:1,useCORS:true,allowTaint:true});
                 const imgData1=canvas1.toDataURL('image/png');
                 const imgWidth1=279.4;
