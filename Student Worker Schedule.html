@@ -43,6 +43,11 @@
             --c-16: hsl(95, 55%, 40%);    /* Moss */
             --c-17: hsl(140, 65%, 35%);   /* Pine */
             --c-18: hsl(190, 60%, 40%);   /* Steel Blue */
+            
+            /* Placeholder student colors */
+            --c-jd: hsl(60, 70%, 45%);    /* Golden Yellow */
+            --c-bs: hsl(120, 60%, 40%);   /* Emerald Green */
+            --c-as: hsl(280, 55%, 50%);   /* Purple */
         }
 
         * {
@@ -260,6 +265,11 @@
         .legend-cell.student-16 { background: var(--c-16); }
         .legend-cell.student-17 { background: var(--c-17); }
         .legend-cell.student-18 { background: var(--c-18); }
+        
+        /* Placeholder student colors */
+        .legend-cell.jd { background: var(--c-jd); }
+        .legend-cell.bs { background: var(--c-bs); }
+        .legend-cell.as { background: var(--c-as); }
 
         .schedule-row {
             display: grid;
@@ -303,6 +313,11 @@
         .schedule-cell.student-16 { background: var(--c-16); }
         .schedule-cell.student-17 { background: var(--c-17); }
         .schedule-cell.student-18 { background: var(--c-18); }
+        
+        /* Placeholder student colors */
+        .schedule-cell.jd { background: var(--c-jd); }
+        .schedule-cell.bs { background: var(--c-bs); }
+        .schedule-cell.as { background: var(--c-as); }
 
         .totals-section {
             margin-top: 30px;
@@ -651,7 +666,7 @@
         <div class="admin-controls">
                             <button class="admin-btn save" onclick="saveSchedule()">Quick Save</button>
                <button class="admin-btn load" onclick="loadSchedule()" style="background: #f97316;">Load</button>
-            <button class="admin-btn clear" onclick="clearTimes()">Clear</button>
+                            <button class="admin-btn clear" onclick="clearTimes()" style="background: #fbbf24;">Clear Times</button>
             <button class="admin-btn" onclick="clearSchedule()" style="background: #dc2626;">Clear All</button>
                            <button class="admin-btn export" onclick="exportToPDF()">Export</button>
                <button class="admin-btn" onclick="exportSchedule()" style="background: #8b5cf6;">Save Schedule</button>
@@ -1616,29 +1631,27 @@
         }
 
         function clearTimes() {
-            if (confirm('Clear all scheduled times? This will keep all students but remove their scheduled hours.')) {
-                schedule = {};
-                
-                // Persist the cleared state to localStorage
-                saveHybridSchedule();
-                
-                renderWeekGrid();
-                renderTotalsTable();
-                
-                console.log('Schedule cleared and persisted to localStorage');
-            }
+            // Clear all scheduled times (keeps all students but removes their scheduled hours)
+            schedule = {};
+            
+            // Persist the cleared state to localStorage
+            saveHybridSchedule();
+            
+            renderWeekGrid();
+            renderTotalsTable();
+            
+            console.log('Schedule cleared and persisted to localStorage');
         }
 
         function clearSchedule() {
-            if (confirm('Clear all schedule data? This will also clear any saved schedule and reset to default placeholder names.')) {
-                schedule = {};
-                localStorage.removeItem('studentWorkerSchedule');
-                localStorage.removeItem('labSchedule');
-                localStorage.removeItem('studentWorkerPeople');
-                
-                // Force a page reload to ensure placeholder names are loaded from HTML
-                window.location.reload();
-            }
+            // Clear all schedule data (clears saved schedule and resets to default placeholder names)
+            schedule = {};
+            localStorage.removeItem('studentWorkerSchedule');
+            localStorage.removeItem('labSchedule');
+            localStorage.removeItem('studentWorkerPeople');
+            
+            // Force a page reload to ensure placeholder names are loaded from HTML
+            window.location.reload();
         }
 
         // Drag and drop functionality for reordering students
