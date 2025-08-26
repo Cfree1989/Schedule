@@ -846,11 +846,60 @@
                 );
             }
             
+            // Sanitize schedule data to remove assignments for non-existent students
+            sanitizeScheduleData();
+            
             renderWeekGrid();
             renderTotalsTable();
             
             // Initialize state tracking after rendering
             initializeStateTracking();
+        }
+        
+        function sanitizeScheduleData() {
+            // Filter out schedule entries for students who no longer exist in the people list
+            console.log('Sanitizing schedule data...');
+            
+            // Get current valid student codes
+            const validStudentCodes = people.map(person => person.code);
+            console.log('Valid student codes:', validStudentCodes);
+            
+            // Count assignments before sanitization
+            const assignmentsBefore = Object.keys(schedule).length;
+            let removedAssignments = 0;
+            
+            // Filter schedule entries
+            const sanitizedSchedule = {};
+            Object.entries(schedule).forEach(([key, value]) => {
+                // Parse the key to extract student code (format: "day-slot-studentCode")
+                const keyParts = key.split('-');
+                if (keyParts.length >= 3) {
+                    const studentCode = keyParts[2]; // Student code is the third part
+                    
+                    // Check if this student code exists in the current people list
+                    if (validStudentCodes.includes(studentCode)) {
+                        sanitizedSchedule[key] = value;
+                    } else {
+                        console.log(`Removing assignment for non-existent student: ${key} (student code: ${studentCode})`);
+                        removedAssignments++;
+                    }
+                } else {
+                    // If key format is unexpected, keep it to avoid data loss
+                    console.warn(`Unexpected schedule key format: ${key}, keeping it`);
+                    sanitizedSchedule[key] = value;
+                }
+            });
+            
+            // Replace the schedule with sanitized data
+            schedule = sanitizedSchedule;
+            
+            // Log results
+            const assignmentsAfter = Object.keys(schedule).length;
+            console.log(`Schedule sanitization complete: ${assignmentsBefore} assignments before, ${assignmentsAfter} assignments after, ${removedAssignments} removed`);
+            
+            if (removedAssignments > 0) {
+                console.warn(`Removed ${removedAssignments} assignments for non-existent students`);
+            }
         }
         
         // ===== HYBRID STATE TRACKING SYSTEM =====
@@ -1162,6 +1211,26 @@
                 console.error('Error saving hybrid schedule:', error);
                 // Fallback to legacy save
                 localStorage.setItem('studentWorkerSchedule', JSON.stringify(schedule));
+            }
+        }
+
+        function loadSchedule() {
+            try {
+                console.log('Loading schedule from localStorage...');
+                
+                // Load the hybrid schedule data
+                loadHybridSchedule();
+                
+                // Re-render the interface to reflect loaded data
+                renderWeekGrid();
+                renderTotalsTable();
+                
+                console.log('Schedule loaded successfully');
+                alert('Schedule loaded successfully!');
+                
+            } catch (error) {
+                console.error('Error loading schedule:', error);
+                alert('Error loading schedule. Please try again. Error: ' + error.message);
             }
         }
 
