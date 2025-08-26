@@ -48,7 +48,16 @@ The user has a Student Worker Schedule HTML application that uses a hybrid state
   - Updated `clearTimes()` to call `saveHybridSchedule()` after clearing
   - Improved PDF export error handling with detailed library status reporting
 
-### Task 4: Ensure PDF export dependencies are loaded
+### Task 4: Fix PDF export element selection bug ✅ COMPLETED
+- **Objective**: Fix the "Cannot export schedule: missing required sections" error
+- **Success Criteria**:
+  - PDF export function correctly identifies all required DOM elements
+  - No false "missing sections" errors
+  - PDF export works reliably
+- **Status**: ✅ COMPLETED
+- **Implementation**: Fixed element selector from `.controls` to `.admin-controls` and removed references to non-existent `controls` element
+
+### Task 5: Ensure PDF export dependencies are loaded
 - **Objective**: Make PDF export more reliable by ensuring required libraries are loaded
 - **Success Criteria**:
   - jsPDF and html2canvas libraries are verified before export
@@ -70,6 +79,7 @@ The user has a Student Worker Schedule HTML application that uses a hybrid state
 - [x] Reload saved students in loadSchedule
 - [x] Persist cleared schedule in clearTimes
 - [x] Improve PDF export error handling for CDN failures
+- [x] Fix PDF export element selection bug
 
 ### Current Tasks
 - [ ] Bundle PDF dependencies locally (optional enhancement)
@@ -87,6 +97,7 @@ The user has a Student Worker Schedule HTML application that uses a hybrid state
 2. **Load button enhanced**: Now reloads both schedule and people data from localStorage
 3. **Clear function improved**: Now persists cleared state to localStorage using `saveHybridSchedule()`
 4. **PDF export error handling**: Added detailed library status checking and helpful error messages
+5. **PDF export element selection fixed**: Corrected element selector from `.controls` to `.admin-controls` to fix "missing required sections" error
 
 **Critical Issues Resolved**: 
 - Schedule entries were being incorrectly removed due to wrong key parsing
@@ -97,11 +108,12 @@ The user has a Student Worker Schedule HTML application that uses a hybrid state
 **Next Steps**: Consider bundling PDF dependencies locally for offline use, or proceed with testing the current fixes.
 
 ## Executor's Feedback or Assistance Requests
-**Task 3 Completion Report**:
+**Task 3 & 4 Completion Report**:
 - ✅ Fixed schedule key parsing to correctly extract student codes from time slots containing dashes
 - ✅ Enhanced `loadSchedule()` to reload both schedule and people data from localStorage
 - ✅ Updated `clearTimes()` to persist cleared state using `saveHybridSchedule()`
 - ✅ Improved PDF export error handling with detailed library status reporting and helpful user messages
+- ✅ Fixed PDF export element selection bug by correcting element selector from `.controls` to `.admin-controls`
 - ✅ All critical bugs identified in feedback have been resolved
 
 **Ready for Testing**: The application should now handle all the edge cases mentioned in the feedback. Users can test:
@@ -109,6 +121,7 @@ The user has a Student Worker Schedule HTML application that uses a hybrid state
 2. Using the Load button to restore both schedule and student data
 3. Clearing schedules and verifying they stay cleared after refresh
 4. PDF export with clear error messages if libraries fail to load
+5. PDF export functionality working without "missing required sections" errors
 
 ## Lessons
 - Always verify function existence before implementing UI elements that call them
@@ -120,6 +133,7 @@ The user has a Student Worker Schedule HTML application that uses a hybrid state
 - **NEW**: UI functions should be complete - if a function loads data, it should load all related data, not just partial data
 - **NEW**: State-changing operations should always persist changes to avoid data loss
 - **NEW**: External library dependencies should have comprehensive error checking and user-friendly error messages
+- **NEW**: Element selectors in JavaScript functions must match the actual HTML structure - verify element classes exist before using them
 
 
 Primary Goals

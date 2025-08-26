@@ -1766,15 +1766,14 @@
 
             const header = document.querySelector('.header');
             const adminControls = document.querySelector('.admin-controls');
-            const controls = document.querySelector('.controls');
             const scheduleGrid = document.querySelector('.schedule-grid');
             const totalsSection = document.querySelector('.totals-section');
 
-            if (!header || !controls || !scheduleGrid || !totalsSection) {
+            if (!header || !scheduleGrid || !totalsSection) {
                 alert('Cannot export schedule: missing required sections.');
                 console.error('Element existence check:', {
                     header: !!header,
-                    controls: !!controls,
+                    adminControls: !!adminControls,
                     scheduleGrid: !!scheduleGrid,
                     totalsSection: !!totalsSection
                 });
@@ -1784,16 +1783,13 @@
             console.log('Element selection results:');
             console.log('- Header found:', !!header, header ? header.textContent.trim() : 'NOT FOUND');
             console.log('- Admin controls found:', !!adminControls);
-            console.log('- Controls found:', !!controls, controls ? controls.textContent.trim() : 'NOT FOUND');
             console.log('- Schedule grid found:', !!scheduleGrid);
             console.log('- Totals section found:', !!totalsSection);
 
             const originalAdminDisplay = adminControls.style.display;
-            const originalControlsDisplay = controls.style.display;
             const originalTotalsDisplay = totalsSection.style.display;
 
             adminControls.style.display = 'none';
-            controls.style.display = 'none';
 
             let scheduleContainer;
             let totalsContainer;
@@ -1895,7 +1891,6 @@
             } finally {
                 console.log('=== PDF EXPORT CLEANUP ===');
                 adminControls.style.display = originalAdminDisplay;
-                controls.style.display = originalControlsDisplay;
                 totalsSection.style.display = originalTotalsDisplay;
                 if (scheduleContainer && scheduleContainer.parentNode) {
                     document.body.removeChild(scheduleContainer);
