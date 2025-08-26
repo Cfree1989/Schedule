@@ -1169,10 +1169,9 @@
             const weekGrid = document.getElementById('weekGrid');
             weekGrid.innerHTML = '';
 
-            // Calculate dynamic lane width based on number of students
-            const numStudents = people.length;
-            const maxStudentsPerRow = 16;
-            
+            // Calculate dynamic lane width based on current student count
+            const numStudents = Math.max(people.length, 1); // ensure at least one column
+
             // Use 1fr to make columns dynamically fill available space
             const gridColumns = `repeat(${numStudents}, 1fr)`;
 
@@ -1365,6 +1364,10 @@
                 color: newColor
             });
 
+            // Persist changes immediately so new column is saved
+            localStorage.setItem('studentWorkerPeople', JSON.stringify(people));
+            saveHybridSchedule();
+
             // Clear form
             document.getElementById('studentName').value = '';
 
@@ -1478,6 +1481,10 @@
                 // Update state tracking to reflect the removal
                 updateTrackedState();
                 captureCurrentAssignments();
+
+                // Persist updated people list and schedule
+                localStorage.setItem('studentWorkerPeople', JSON.stringify(people));
+                saveHybridSchedule();
 
                 // Re-render everything
                 renderWeekGrid();
@@ -1787,6 +1794,10 @@
                 role: "",
                 color: newColor
             });
+
+            // Persist changes immediately so new column is saved
+            localStorage.setItem('studentWorkerPeople', JSON.stringify(people));
+            saveHybridSchedule();
 
             // Close modal and clear form
             closeAddStudentModal();
