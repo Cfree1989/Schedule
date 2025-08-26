@@ -131,15 +131,6 @@
         .admin-btn.save:hover {
             background: #059669;
         }
-
-        .admin-btn.load {
-            background: #f59e0b;
-        }
-
-        .admin-btn.load:hover {
-            background: #d97706;
-        }
-
         .admin-btn.clear {
             background: #ef4444;
         }
@@ -650,7 +641,6 @@
 
         <div class="admin-controls">
                             <button class="admin-btn save" onclick="saveSchedule()">Quick Save</button>
-            <button class="admin-btn load" onclick="loadSchedule()">Load</button>
             <button class="admin-btn clear" onclick="clearTimes()">Clear</button>
             <button class="admin-btn export" onclick="exportToPDF()">Export</button>
             <button class="admin-btn" onclick="exportSchedule()" style="background: #059669;">Save Schedule</button>
@@ -1491,22 +1481,6 @@
             saveHybridSchedule();
             localStorage.setItem('studentWorkerPeople', JSON.stringify(people));
             alert('Schedule saved successfully! It will persist until you clear your browser data or manually clear the schedule.');
-        }
-
-        function loadSchedule() {
-            // Use hybrid load system
-            loadHybridSchedule();
-            const savedPeople = localStorage.getItem('studentWorkerPeople');
-            
-            if (savedPeople) {
-                const savedPeopleData = JSON.parse(savedPeople);
-                people.length = 0; // Clear array
-                savedPeopleData.forEach(person => people.push(person));
-            }
-            
-            renderWeekGrid();
-            renderTotalsTable();
-            alert('Schedule loaded successfully!');
         }
 
         function clearTimes() {
