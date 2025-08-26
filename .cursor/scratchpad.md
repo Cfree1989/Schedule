@@ -63,7 +63,33 @@ The user has a Student Worker Schedule HTML application that uses a hybrid state
   - jsPDF and html2canvas libraries are verified before export
   - Graceful fallback if libraries fail to load
   - Clear error messages for users
-- **Status**: 🔄 PENDING
+- **Status**: ✅ COMPLETED
+
+### Task 6: Fix orphaned schedule entries for student code changes ✅ COMPLETED
+- **Objective**: Handle schedule entries that remain when student codes are changed (e.g., "SCC"/"SCB" to "SC")
+- **Success Criteria**:
+  - Orphaned schedule entries are automatically migrated to new student codes
+  - Student code changes in editStudent function update all related schedule entries
+  - No data loss when student codes are modified
+- **Status**: ✅ COMPLETED
+- **Implementation**: 
+  - Added migration code in `initializeSchedule()` to convert "SCC"/"SCB" entries to "SC"
+  - Enhanced `editStudent()` function to update all schedule entries when student codes change
+  - Added comprehensive logging for migration operations
+
+### Task 7: Replace Default Students with Placeholder Names ✅ COMPLETED
+- **Objective**: Replace hardcoded default students with placeholder names for better user experience
+- **Success Criteria**:
+  - No hardcoded real student names in the source code
+  - Clear placeholder names that won't be mistaken for real students
+  - Unique initials for all placeholder students
+  - Console guidance for users to replace placeholders
+- **Status**: ✅ COMPLETED
+- **Implementation**: 
+  - Updated embedded sample data to use placeholder students (JD, JS, BS, AS)
+  - Updated `initializeSchedule()` fallback to use placeholder students
+  - Updated `loadDefaultPeople()` function to use placeholder students
+  - Added console logging to guide users
 
 ## Project Status Board
 
@@ -83,6 +109,7 @@ The user has a Student Worker Schedule HTML application that uses a hybrid state
 
 ### Current Tasks
 - [ ] Bundle PDF dependencies locally (optional enhancement)
+- [ ] Test the orphaned schedule entry migration fix
 
 ### Future Tasks
 - [ ] Additional UI improvements as requested
@@ -90,38 +117,39 @@ The user has a Student Worker Schedule HTML application that uses a hybrid state
 - [ ] Enhanced error handling
 
 ## Current Status / Progress Tracking
-**Current Phase**: Task 3 completed, all critical bugs fixed
+**Current Phase**: Task 6 completed, orphaned schedule entry migration implemented
 
-**Latest Update**: Successfully addressed all critical issues identified in the feedback:
-1. **Schedule key parsing fixed**: Changed from `keyParts[2]` to `keyParts[keyParts.length - 1]` to correctly handle time slots with dashes
-2. **Load button enhanced**: Now reloads both schedule and people data from localStorage
-3. **Clear function improved**: Now persists cleared state to localStorage using `saveHybridSchedule()`
-4. **PDF export error handling**: Added detailed library status checking and helpful error messages
-5. **PDF export element selection fixed**: Corrected element selector from `.controls` to `.admin-controls` to fix "missing required sections" error
+**Latest Update**: Successfully addressed the orphaned schedule entry issue:
+1. **Orphaned schedule entries fixed**: Added migration code to convert "SCC"/"SCB" entries to "SC" during initialization
+2. **Student code change handling enhanced**: Updated `editStudent()` function to migrate all schedule entries when student codes change
+3. **Comprehensive data migration**: Added support for updating tracked state and DOM verification data when codes change
+4. **Migration logging**: Added console logging to track migration operations for debugging
 
 **Critical Issues Resolved**: 
-- Schedule entries were being incorrectly removed due to wrong key parsing
-- Load button only loaded schedule data, not student list
-- Clear function didn't persist changes
-- PDF export failed silently when CDN libraries didn't load
+- Schedule entries for "SCC" and "SCB" were being removed because these codes no longer existed in the people list
+- Student code changes in the edit function didn't update existing schedule entries
+- Data inconsistency between schedule assignments and current student codes
 
-**Next Steps**: Consider bundling PDF dependencies locally for offline use, or proceed with testing the current fixes.
+**Next Steps**: Test the migration fix to ensure orphaned schedule entries are properly converted and no longer cause data loss.
 
 ## Executor's Feedback or Assistance Requests
-**Task 3 & 4 Completion Report**:
-- ✅ Fixed schedule key parsing to correctly extract student codes from time slots containing dashes
-- ✅ Enhanced `loadSchedule()` to reload both schedule and people data from localStorage
-- ✅ Updated `clearTimes()` to persist cleared state using `saveHybridSchedule()`
-- ✅ Improved PDF export error handling with detailed library status reporting and helpful user messages
-- ✅ Fixed PDF export element selection bug by correcting element selector from `.controls` to `.admin-controls`
-- ✅ All critical bugs identified in feedback have been resolved
+**Task 6 Completion Report**:
+- ✅ Added migration code in `initializeSchedule()` to automatically convert "SCC"/"SCB" schedule entries to "SC"
+- ✅ Enhanced `editStudent()` function to update all schedule entries when student codes change
+- ✅ Added comprehensive data migration for tracked state and DOM verification data
+- ✅ Implemented migration logging for debugging and verification
+- ✅ Fixed the root cause of orphaned schedule entries being removed by `sanitizeScheduleData()`
 
-**Ready for Testing**: The application should now handle all the edge cases mentioned in the feedback. Users can test:
-1. Loading schedules with time slots containing dashes
-2. Using the Load button to restore both schedule and student data
-3. Clearing schedules and verifying they stay cleared after refresh
-4. PDF export with clear error messages if libraries fail to load
-5. PDF export functionality working without "missing required sections" errors
+**Issue Resolution**: The problem was that when Scottie Burgess's student code was changed from "SCC" or "SCB" to "SC", the old schedule entries remained with the old codes. Since these codes no longer existed in the people list, `sanitizeScheduleData()` correctly removed them as "non-existent students." The fix ensures that:
+1. Existing orphaned entries are migrated during initialization
+2. Future student code changes automatically update all related schedule entries
+3. No data loss occurs when student codes are modified
+
+**Ready for Testing**: The application should now:
+1. Automatically migrate orphaned "SCC"/"SCB" entries to "SC" on page load
+2. Preserve all schedule assignments when student codes are changed via the edit function
+3. No longer show the "2 assignments removed" message for Scottie's entries
+4. Maintain data consistency between schedule assignments and student codes
 
 ## Lessons
 - Always verify function existence before implementing UI elements that call them
@@ -134,6 +162,9 @@ The user has a Student Worker Schedule HTML application that uses a hybrid state
 - **NEW**: State-changing operations should always persist changes to avoid data loss
 - **NEW**: External library dependencies should have comprehensive error checking and user-friendly error messages
 - **NEW**: Element selectors in JavaScript functions must match the actual HTML structure - verify element classes exist before using them
+- **NEW**: Student code changes must update all related schedule entries to prevent orphaned data
+- **NEW**: Data migration should be handled proactively during initialization to fix existing inconsistencies
+- **NEW**: When student codes are modified, all persistence layers (schedule, tracked state, DOM verification) must be updated
 
 
 Primary Goals
@@ -193,3 +224,203 @@ Portable files: Exported HTML files contain embedded data and work independently
 Error recovery: Multiple fallback mechanisms prevent data loss
 Real-time updates: UI updates immediately to reflect data changes
 This system ensures that schedule data is never lost, can be shared between computers, and provides multiple ways to backup and export the information.
+
+## Comprehensive Save Features Testing Plan
+
+### Background and Motivation
+The user has requested a thorough testing strategy for the save features of the Student Worker Schedule system. The system has multiple save mechanisms that need comprehensive testing to ensure data integrity, reliability, and user experience.
+
+### Key Challenges and Analysis
+1. **Multiple Save Mechanisms**: The system has 5 different save-related functions that need individual and integrated testing
+2. **Hybrid State Tracking**: Complex data persistence system with multiple fallback mechanisms
+3. **Auto-save Functionality**: Debounced auto-save that triggers on user interactions
+4. **Cross-browser Compatibility**: localStorage behavior may vary between browsers
+5. **Data Integrity**: Need to verify that saved data matches displayed data
+6. **Error Recovery**: Testing fallback mechanisms when primary save fails
+7. **Export Functionality**: PDF and HTML export features with external dependencies
+
+### High-level Task Breakdown
+
+#### Task 1: Manual Save Function Testing
+- **Objective**: Test all manual save functions individually
+- **Success Criteria**:
+  - `saveSchedule()` saves both schedule and people data to localStorage x
+  - `saveHybridSchedule()` creates proper hybrid data structure with checksums
+  - `clearTimes()` clears schedule and persists cleared state x
+  - `clearSchedule()` removes all data from localStorage
+  - All functions provide appropriate user feedback
+- **Test Scenarios**:
+  - Save with empty schedule x
+  - Save with full schedule x
+  - Save with partial schedule x
+  - Clear functions work correctly x
+  - Error handling when localStorage is full/disabled 
+
+#### Task 2: Auto-save Functionality Testing
+- **Objective**: Verify auto-save triggers correctly and saves data reliably
+- **Success Criteria**:
+  - Auto-save triggers on schedule cell clicks x
+  - Auto-save triggers on student drag-and-drop reordering ✅
+  - Debouncing works correctly (500ms delay)
+  - Auto-save doesn't trigger excessive localStorage writes
+  - Auto-save provides console feedback
+- **Test Scenarios**:
+  - Rapid clicking on schedule cells
+  - Drag-and-drop student reordering
+  - Multiple rapid changes
+  - Auto-save with network interruptions
+  - Auto-save with localStorage errors
+
+#### Task 3: Load Function Testing
+- **Objective**: Test data loading and restoration functionality
+- **Success Criteria**:
+  - `loadSchedule()` loads both schedule and people data
+  - Data sanitization removes assignments for non-existent students
+  - UI re-renders correctly after loading
+  - Handles missing or corrupted data gracefully
+  - Provides clear success/error feedback
+- **Test Scenarios**:
+  - Load with valid saved data
+  - Load with corrupted data
+  - Load with missing data
+  - Load with orphaned schedule entries
+  - Load with time slots containing dashes
+
+#### Task 4: Export Function Testing
+- **Objective**: Test PDF and HTML export functionality
+- **Success Criteria**:
+  - `exportToPDF()` generates valid PDF files
+  - `exportSchedule()` creates self-contained HTML files
+  - Exported files contain correct data
+  - Error handling for missing dependencies
+  - Files can be opened and used independently
+- **Test Scenarios**:
+  - Export with full schedule
+  - Export with empty schedule
+  - Export with partial schedule
+  - PDF export with missing CDN libraries
+  - HTML export file portability
+  - Import exported HTML files
+
+#### Task 5: Data Integrity Testing
+- **Objective**: Verify data consistency across all save/load operations
+- **Success Criteria**:
+  - Saved data matches displayed data exactly
+  - Checksums validate data integrity
+  - DOM verification captures correct state
+  - No data loss during save/load cycles
+  - Fallback mechanisms work correctly
+- **Test Scenarios**:
+  - Complete save/load cycle verification
+  - Checksum validation
+  - DOM state verification
+  - Fallback mechanism testing
+  - Data corruption recovery
+
+#### Task 6: Cross-browser and Edge Case Testing
+- **Objective**: Test save functionality across different browsers and scenarios
+- **Success Criteria**:
+  - Works in Chrome, Firefox, Safari, Edge
+  - Handles localStorage quota exceeded
+  - Works with localStorage disabled
+  - Handles browser crashes/refreshes
+  - Works with different data sizes
+- **Test Scenarios**:
+  - Multiple browser testing
+  - localStorage quota testing
+  - Private/incognito mode testing
+  - Browser crash recovery
+  - Large dataset handling
+
+#### Task 7: Integration Testing
+- **Objective**: Test all save features working together
+- **Success Criteria**:
+  - All save mechanisms work together seamlessly
+  - No conflicts between different save methods
+  - Consistent user experience across all features
+  - Proper error handling and recovery
+- **Test Scenarios**:
+  - Combined auto-save and manual save
+  - Export after auto-save
+  - Load after export
+  - Multiple save operations in sequence
+  - Error recovery scenarios
+
+### Project Status Board
+
+#### Testing Tasks
+- [ ] **Task 1**: Manual Save Function Testing
+- [ ] **Task 2**: Auto-save Functionality Testing  
+- [ ] **Task 3**: Load Function Testing
+- [ ] **Task 4**: Export Function Testing
+- [ ] **Task 5**: Data Integrity Testing
+- [ ] **Task 6**: Cross-browser and Edge Case Testing
+- [ ] **Task 7**: Integration Testing
+
+#### Test Environment Setup
+- [ ] Create test data sets (empty, partial, full schedules)
+- [ ] Set up multiple browser testing environment
+- [ ] Prepare localStorage testing tools
+- [ ] Create automated test scripts
+- [ ] Set up error simulation scenarios
+
+### Current Status / Progress Tracking
+**Current Phase**: Planning comprehensive testing strategy for save features
+
+**Testing Approach**: 
+- Manual testing for user experience validation
+- Automated testing for data integrity verification
+- Cross-browser testing for compatibility
+- Edge case testing for robustness
+- Integration testing for system reliability
+
+**Key Testing Areas**:
+1. **Data Persistence**: Verify all save mechanisms work correctly
+2. **Data Integrity**: Ensure no data loss or corruption
+3. **User Experience**: Confirm clear feedback and error handling
+4. **Cross-browser Compatibility**: Test across different browsers
+5. **Error Recovery**: Validate fallback mechanisms
+6. **Export Functionality**: Test PDF and HTML export features
+
+### Executor's Feedback or Assistance Requests
+**Task 5: Fix Auto-save on Drag and Drop** ✅ **COMPLETED**
+
+**Issue Identified**: The drag and drop functionality for reordering students was working correctly but not triggering the auto-save mechanism. The `handleDrop` function was reordering the `people` array and re-rendering the UI, but missing the call to `queueAutoSave()`.
+
+**Solution Implemented**: Added `queueAutoSave()` call to the `handleDrop` function after the people array is reordered and the UI is re-rendered. This ensures that student reordering is automatically persisted to localStorage.
+
+**Code Change**: 
+```javascript
+// In handleDrop function, after reordering people array and re-rendering:
+queueAutoSave(); // Trigger auto-save to persist the reordered people array
+```
+
+**Testing Plan Ready**: Comprehensive testing strategy has been developed covering all save features of the system. The plan includes:
+
+- **7 major testing tasks** covering all aspects of save functionality
+- **Detailed success criteria** for each testing area
+- **Specific test scenarios** for edge cases and error conditions
+- **Cross-browser compatibility** testing requirements
+- **Integration testing** to ensure all features work together
+
+**Next Steps**: 
+1. Begin with Task 1 (Manual Save Function Testing) to establish baseline functionality
+2. Progress through tasks systematically, documenting results
+3. Create automated test scripts for repeatable testing
+4. Set up cross-browser testing environment
+5. Document all findings and any issues discovered
+
+**Testing Tools Needed**:
+- Browser developer tools for localStorage inspection
+- Multiple browsers for compatibility testing
+- Test data sets with various schedule configurations
+- Error simulation tools (network interruption, localStorage quota exceeded)
+- Automated testing framework for repeatable tests
+
+### Lessons
+- **NEW**: Comprehensive testing plans should cover both individual function testing and integration testing
+- **NEW**: Save functionality testing must include data integrity verification, not just functional testing
+- **NEW**: Cross-browser testing is essential for localStorage-based applications
+- **NEW**: Error scenarios and edge cases are as important as happy path testing
+- **NEW**: Auto-save functionality requires specific testing for debouncing and performance
+- **NEW**: Export features need testing for both functionality and portability of exported files
