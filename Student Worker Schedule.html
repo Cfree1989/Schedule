@@ -778,29 +778,42 @@
         let schedule = {};
         
         // Sample data from Excel (matching the totals shown)
-                const sampleSchedule = {};
+        const sampleSchedule = {};
+        
+        // State tracking system for hybrid localStorage implementation
+        let stateTracker = {
+            lastSaved: null,
+            isDirty: false,
+            saveQueue: [],
+            autoSaveEnabled: true
+        };
+        
+        // Hybrid data structure for maximum reliability
+        let hybridData = {
+            trackedState: {},      // Event-driven state tracking
+            domVerification: {},   // DOM-based verification backup
+            metadata: {
+                lastModified: null,
+                version: '1.0',
+                checksum: null
+            }
+        };
 
         function initializeSchedule() {
             // Clear any old cached data to avoid conflicts with updated names/codes
             localStorage.removeItem('studentWorkerPeople');
             
-            // Load schedule data if it exists, otherwise use sample data
-            const savedSchedule = localStorage.getItem('studentWorkerSchedule');
+            // Load schedule data using hybrid approach
+            loadHybridSchedule();
             
-            if (savedSchedule) {
-                schedule = JSON.parse(savedSchedule);
-                
-                // Migrate any old "S" code schedule entries to "SC" code
-                Object.keys(schedule).forEach(key => {
-                    if (key.includes('-S')) {
-                        const newKey = key.replace('-S', '-SC');
-                        schedule[newKey] = schedule[key];
-                        delete schedule[key];
-                    }
-                });
-            } else {
-                schedule = { ...sampleSchedule };
-            }
+            // Migrate any old "S" code schedule entries to "SC" code
+            Object.keys(schedule).forEach(key => {
+                if (key.includes('-S')) {
+                    const newKey = key.replace('-S', '-SC');
+                    schedule[newKey] = schedule[key];
+                    delete schedule[key];
+                }
+            });
             
             // Always use the current people array (no merging with old data)
             people.length = 0;
@@ -823,6 +836,181 @@
             
             renderWeekGrid();
             renderTotalsTable();
+            
+            // Initialize state tracking after rendering
+            initializeStateTracking();
+        }
+        
+        // ===== HYBRID STATE TRACKING SYSTEM =====
+        
+        function initializeStateTracking() {
+            // Set up event listeners for automatic state tracking
+            setupAutoSaveListeners();
+            
+            // Initialize hybrid data structure
+            updateTrackedState();
+            captureCurrentAssignments();
+            
+            console.log('State tracking system initialized');
+        }
+        
+        function setupAutoSaveListeners() {
+            // Listen for any changes to the schedule grid
+            const weekGrid = document.getElementById('weekGrid');
+            if (weekGrid) {
+                // Use MutationObserver to detect DOM changes
+                const observer = new MutationObserver((mutations) => {
+                    mutations.forEach((mutation) => {
+                        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                            // Schedule grid cell was modified
+                            if (stateTracker.autoSaveEnabled) {
+                                queueAutoSave();
+                            }
+                        }
+                    });
+                });
+                
+                observer.observe(weekGrid, {
+                    attributes: true,
+                    subtree: true,
+                    attributeFilter: ['class']
+                });
+            }
+        }
+        
+        function queueAutoSave() {
+            if (!stateTracker.isDirty) {
+                stateTracker.isDirty = true;
+                
+                // Debounce auto-save to avoid excessive localStorage writes
+                clearTimeout(stateTracker.saveQueue[0]);
+                const saveTimeout = setTimeout(() => {
+                    performAutoSave();
+                }, 500); // 500ms debounce
+                
+                stateTracker.saveQueue = [saveTimeout];
+            }
+        }
+        
+        function performAutoSave() {
+            try {
+                // Update tracked state
+                updateTrackedState();
+                
+                // Capture DOM verification
+                captureCurrentAssignments();
+                
+                // Save to localStorage
+                saveHybridSchedule();
+                
+                stateTracker.isDirty = false;
+                stateTracker.lastSaved = new Date().toISOString();
+                
+                console.log('Auto-save completed successfully');
+            } catch (error) {
+                console.error('Auto-save failed:', error);
+                // Fallback to manual save approach
+                saveSchedule();
+            }
+        }
+        
+        function updateTrackedState() {
+            // Update the tracked state with current schedule data
+            hybridData.trackedState = { ...schedule };
+            hybridData.metadata.lastModified = new Date().toISOString();
+            hybridData.metadata.checksum = generateChecksum(schedule);
+        }
+        
+        function captureCurrentAssignments() {
+            // DOM verification: capture current state from the rendered grid
+            const domState = {};
+            
+            days.forEach(day => {
+                timeSlots.forEach(slot => {
+                    people.forEach(person => {
+                        const cellId = `${day}-${slot}-${person.code}`;
+                        const cell = document.querySelector(`[data-day="${day}"][data-slot="${slot}"][data-person="${person.code}"]`);
+                        
+                        if (cell) {
+                            // Check if cell has the person's color class (indicating scheduled)
+                            domState[cellId] = cell.classList.contains(person.color);
+                        }
+                    });
+                });
+            });
+            
+            hybridData.domVerification = domState;
+        }
+        
+        function generateChecksum(data) {
+            // Simple checksum for data integrity
+            const str = JSON.stringify(data);
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // Convert to 32-bit integer
+            }
+            return hash.toString();
+        }
+        
+        function loadHybridSchedule() {
+            try {
+                // Try to load hybrid data first
+                const savedHybridData = localStorage.getItem('labSchedule');
+                
+                if (savedHybridData) {
+                    const parsed = JSON.parse(savedHybridData);
+                    
+                    // Validate hybrid data structure
+                    if (parsed.trackedState && parsed.domVerification && parsed.metadata) {
+                        hybridData = parsed;
+                        
+                        // Use tracked state as primary source
+                        schedule = { ...hybridData.trackedState };
+                        
+                        // Verify against DOM verification if available
+                        const checksum = generateChecksum(schedule);
+                        if (checksum === hybridData.metadata.checksum) {
+                            console.log('Hybrid schedule loaded successfully');
+                            return;
+                        } else {
+                            console.warn('Checksum mismatch, using DOM verification as backup');
+                            schedule = { ...hybridData.domVerification };
+                        }
+                    } else {
+                        // Fallback to legacy format
+                        schedule = parsed;
+                    }
+                } else {
+                    // No saved data, use sample data
+                    schedule = { ...sampleSchedule };
+                }
+            } catch (error) {
+                console.error('Error loading hybrid schedule:', error);
+                // Fallback to sample data
+                schedule = { ...sampleSchedule };
+            }
+        }
+        
+        function saveHybridSchedule() {
+            try {
+                // Update metadata before saving
+                hybridData.metadata.lastModified = new Date().toISOString();
+                hybridData.metadata.checksum = generateChecksum(schedule);
+                
+                // Save hybrid data structure
+                localStorage.setItem('labSchedule', JSON.stringify(hybridData));
+                
+                // Also save legacy format for backward compatibility
+                localStorage.setItem('studentWorkerSchedule', JSON.stringify(schedule));
+                
+                console.log('Hybrid schedule saved successfully');
+            } catch (error) {
+                console.error('Error saving hybrid schedule:', error);
+                // Fallback to legacy save
+                localStorage.setItem('studentWorkerSchedule', JSON.stringify(schedule));
+            }
         }
 
         function renderWeekGrid() {
@@ -898,8 +1086,10 @@
             renderWeekGrid();
             renderTotalsTable();
             
-            // Auto-save after each change (optional - you can remove this if you prefer manual saving)
-            // saveSchedule();
+            // Trigger auto-save through state tracking system
+            if (stateTracker.autoSaveEnabled) {
+                queueAutoSave();
+            }
         }
 
         function renderTotalsTable() {
@@ -1124,26 +1314,26 @@
         }
 
         function saveSchedule() {
-            localStorage.setItem('studentWorkerSchedule', JSON.stringify(schedule));
+            // Use hybrid save system
+            saveHybridSchedule();
             localStorage.setItem('studentWorkerPeople', JSON.stringify(people));
             alert('Schedule saved successfully! It will persist until you clear your browser data or manually clear the schedule.');
         }
 
         function loadSchedule() {
-            const savedSchedule = localStorage.getItem('studentWorkerSchedule');
+            // Use hybrid load system
+            loadHybridSchedule();
             const savedPeople = localStorage.getItem('studentWorkerPeople');
             
-            if (savedSchedule && savedPeople) {
-                schedule = JSON.parse(savedSchedule);
+            if (savedPeople) {
                 const savedPeopleData = JSON.parse(savedPeople);
                 people.length = 0; // Clear array
                 savedPeopleData.forEach(person => people.push(person));
-                renderWeekGrid();
-                renderTotalsTable();
-                alert('Schedule loaded successfully!');
-            } else {
-                alert('No saved schedule found.');
             }
+            
+            renderWeekGrid();
+            renderTotalsTable();
+            alert('Schedule loaded successfully!');
         }
 
         function clearTimes() {
@@ -1158,6 +1348,7 @@
             if (confirm('Clear all schedule data? This will also clear any saved schedule.')) {
                 schedule = {};
                 localStorage.removeItem('studentWorkerSchedule');
+                localStorage.removeItem('labSchedule');
                 localStorage.removeItem('studentWorkerPeople');
                 renderWeekGrid();
                 renderTotalsTable();
