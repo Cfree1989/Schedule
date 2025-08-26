@@ -755,21 +755,7 @@
                 }
             });
             
-            // Migrate orphaned "SCC" and "SCB" entries to "SC" (placeholder student)
-            // This handles the case where Scottie's code was changed but old schedule entries remain
-            let scottieMigrationCount = 0;
-            Object.keys(schedule).forEach(key => {
-                if (key.includes('-SCC') || key.includes('-SCB')) {
-                    const newKey = key.replace('-SCC', '-SC').replace('-SCB', '-SC');
-                    schedule[newKey] = schedule[key];
-                    delete schedule[key];
-                    scottieMigrationCount++;
-                }
-            });
-            
-            if (scottieMigrationCount > 0) {
-                console.log(`Migrated ${scottieMigrationCount} orphaned schedule entries from SCC/SCB to SC`);
-            }
+
             
             // Load people list from localStorage if available
             people.length = 0;
@@ -1644,13 +1630,14 @@
         }
 
         function clearSchedule() {
-            if (confirm('Clear all schedule data? This will also clear any saved schedule.')) {
+            if (confirm('Clear all schedule data? This will also clear any saved schedule and reset to default placeholder names.')) {
                 schedule = {};
                 localStorage.removeItem('studentWorkerSchedule');
                 localStorage.removeItem('labSchedule');
                 localStorage.removeItem('studentWorkerPeople');
-                renderWeekGrid();
-                renderTotalsTable();
+                
+                // Force a page reload to ensure placeholder names are loaded from HTML
+                window.location.reload();
             }
         }
 
