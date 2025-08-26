@@ -51,8 +51,8 @@ Based on the Single-File HTML App Research document:
 
 **Tasks**:
 1. [x] **Implement event-driven state tracking system** ✅ COMPLETED
-2. [ ] Implement `captureCurrentAssignments()` function (DOM verification)
-3. [ ] Implement `restoreAssignments()` function  
+2. [x] **Implement `captureCurrentAssignments()` function (DOM verification)** ✅ COMPLETED
+3. [x] **Implement `restoreAssignments()` function** ✅ COMPLETED
 4. [ ] Add automatic saving to localStorage with hybrid data structure
 5. [ ] Add loading from localStorage on page load
 6. [ ] Test thoroughly across different scenarios
@@ -101,11 +101,11 @@ Based on the Single-File HTML App Research document:
 ## Project Status Board
 
 ### Current Status / Progress Tracking
-- **Phase**: Phase 1 Implementation - Task 1 Complete ✅
-- **Next Action**: Begin Task 2 (enhance captureCurrentAssignments function)
-- **Estimated Time**: 2-3 hours remaining
+- **Phase**: Phase 1 Implementation - Tasks 2 & 3 Complete ✅
+- **Next Action**: Begin Task 4 (automatic saving to localStorage)
+- **Estimated Time**: 1-2 hours remaining
 - **Risk Level**: Low (mostly additive changes)
-- **Progress**: 1/6 tasks completed (16.7%)
+- **Progress**: 3/6 tasks completed (50%)
 
 ### Completed Tasks
 - [x] Analyze current application state
@@ -114,13 +114,13 @@ Based on the Single-File HTML App Research document:
 - [x] Prioritize improvements based on use case
 - [x] Create implementation plan
 - [x] **Task 1: Implement event-driven state tracking system**
+- [x] **Task 2: Enhance `captureCurrentAssignments()` function (DOM verification backup)**
+- [x] **Task 3: Implement `restoreAssignments()` function**
 
 ### In Progress
-- **Task 2**: Enhance `captureCurrentAssignments()` function (DOM verification backup)
+- **Task 4**: Add automatic saving to localStorage with hybrid data structure
 
 ### Pending Tasks
-- [ ] **Task 2**: Enhance `captureCurrentAssignments()` function (DOM verification backup)
-- [ ] **Task 3**: Implement `restoreAssignments()` function  
 - [ ] **Task 4**: Add automatic saving to localStorage with hybrid data structure
 - [ ] **Task 5**: Add loading from localStorage on page load
 - [ ] **Task 6**: Test thoroughly across different scenarios
@@ -159,6 +159,43 @@ Based on the Single-File HTML App Research document:
 
 **Testing Status**: File opens successfully in browser, no console errors detected
 **Next Steps**: Proceed with Task 2 - enhance the `captureCurrentAssignments()` function for better DOM verification reliability
+
+### Task 2 & 3 Completion Report
+**Status**: ✅ COMPLETED
+**Implementation Details**:
+
+**Task 2 - Enhanced `captureCurrentAssignments()` Function**:
+- Enhanced DOM verification with comprehensive error tracking
+- Added metadata capture (timestamp, error count, cell statistics)
+- Implemented additional verification checks for color class consistency
+- Added graceful handling of missing DOM elements
+- Enhanced logging for debugging and monitoring
+- Structured DOM verification data with assignments, metadata, and error tracking
+
+**Task 3 - Implemented `restoreAssignments()` Function**:
+- Created intelligent restoration system with multiple fallback levels
+- Primary: Tracked state (most reliable)
+- Secondary: DOM verification data
+- Tertiary: Legacy localStorage format
+- Final: Sample data (emergency fallback)
+- Added comprehensive error handling and logging
+- Returns restoration count for monitoring
+
+**Key Enhancements**:
+- **Enhanced DOM Capture**: Now captures metadata, errors, and statistics
+- **Intelligent Restoration**: Multi-level fallback system for maximum reliability
+- **Better Error Handling**: Graceful degradation with detailed logging
+- **Data Integrity**: Enhanced verification and consistency checks
+- **Backward Compatibility**: Maintains support for legacy data formats
+
+**Updated Functions**:
+- `captureCurrentAssignments()` - Enhanced with metadata and error tracking
+- `restoreAssignments()` - New intelligent restoration function
+- `loadHybridSchedule()` - Updated to use new restoration system
+- `saveHybridSchedule()` - Enhanced with better verification
+
+**Testing Status**: File opens successfully, enhanced logging shows proper initialization
+**Next Steps**: Proceed with Task 4 - automatic saving to localStorage with hybrid data structure
 
 ### Technical Considerations
 - **localStorage Key**: Use 'labSchedule' as the storage key
