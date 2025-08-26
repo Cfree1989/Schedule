@@ -847,6 +847,7 @@
             }
             
             // Sanitize schedule data to remove assignments for non-existent students
+            // (Now runs AFTER people list is fully loaded)
             sanitizeScheduleData();
             
             renderWeekGrid();
@@ -859,10 +860,17 @@
         function sanitizeScheduleData() {
             // Filter out schedule entries for students who no longer exist in the people list
             console.log('Sanitizing schedule data...');
+            console.log('Current people list:', people);
             
             // Get current valid student codes
             const validStudentCodes = people.map(person => person.code);
             console.log('Valid student codes:', validStudentCodes);
+            
+            // If people list is empty, don't sanitize (this would remove everything!)
+            if (people.length === 0) {
+                console.warn('People list is empty, skipping sanitization to prevent data loss');
+                return;
+            }
             
             // Count assignments before sanitization
             const assignmentsBefore = Object.keys(schedule).length;
@@ -872,9 +880,11 @@
             const sanitizedSchedule = {};
             Object.entries(schedule).forEach(([key, value]) => {
                 // Parse the key to extract student code (format: "day-slot-studentCode")
+                // Since time slots contain dashes (e.g., "08:30-09:00"), 
+                // the student code is the LAST part, not the third part
                 const keyParts = key.split('-');
                 if (keyParts.length >= 3) {
-                    const studentCode = keyParts[2]; // Student code is the third part
+                    const studentCode = keyParts[keyParts.length - 1]; // Student code is the LAST part
                     
                     // Check if this student code exists in the current people list
                     if (validStudentCodes.includes(studentCode)) {
@@ -1160,18 +1170,41 @@
                         console.log(`Legacy schedule loaded: ${restoredCount} assignments restored`);
                     }
                 } else {
-                    // No saved data, initialize with sample data
-                    hybridData = {
-                        trackedState: sampleSchedule,
-                        domVerification: { assignments: sampleSchedule },
-                        metadata: {
-                            lastModified: new Date().toISOString(),
-                            checksum: generateChecksum(sampleSchedule)
-                        }
-                    };
+                    // No saved data, check if sampleSchedule has meaningful data (from exported file)
+                    const sampleScheduleKeys = Object.keys(sampleSchedule);
+                    const hasEmbeddedData = sampleScheduleKeys.length > 0 && 
+                                          sampleScheduleKeys.some(key => sampleSchedule[key] === true);
                     
-                    const restoredCount = restoreAssignments();
-                    console.log(`Sample schedule loaded: ${restoredCount} assignments restored`);
+                    if (hasEmbeddedData) {
+                        console.log('Found embedded schedule data in sampleSchedule, using it...');
+                        // Use the embedded data directly
+                        schedule = { ...sampleSchedule };
+                        
+                        // Initialize hybrid data with the embedded schedule
+                        hybridData = {
+                            trackedState: sampleSchedule,
+                            domVerification: { assignments: sampleSchedule },
+                            metadata: {
+                                lastModified: new Date().toISOString(),
+                                checksum: generateChecksum(sampleSchedule)
+                            }
+                        };
+                        
+                        console.log(`Embedded schedule loaded: ${Object.keys(schedule).length} assignments restored`);
+                    } else {
+                        // No embedded data, use default sample data
+                        hybridData = {
+                            trackedState: sampleSchedule,
+                            domVerification: { assignments: sampleSchedule },
+                            metadata: {
+                                lastModified: new Date().toISOString(),
+                                checksum: generateChecksum(sampleSchedule)
+                            }
+                        };
+                        
+                        const restoredCount = restoreAssignments();
+                        console.log(`Sample schedule loaded: ${restoredCount} assignments restored`);
+                    }
                 }
             } catch (error) {
                 console.error('Error loading hybrid schedule:', error);
@@ -1216,22 +1249,59 @@
 
         function loadSchedule() {
             try {
-                console.log('Loading schedule from localStorage...');
+                console.log('Loading schedule and people from localStorage...');
                 
                 // Load the hybrid schedule data
                 loadHybridSchedule();
+                
+                // Also reload the people list from localStorage
+                people.length = 0;
+                const savedPeople = localStorage.getItem('studentWorkerPeople');
+                if (savedPeople) {
+                    try {
+                        const savedPeopleData = JSON.parse(savedPeople);
+                        savedPeopleData.forEach(person => people.push(person));
+                        console.log(`Loaded ${people.length} people from localStorage`);
+                    } catch (e) {
+                        console.error('Failed to parse saved people list', e);
+                        // Fall back to default people array
+                        loadDefaultPeople();
+                    }
+                } else {
+                    console.log('No saved people list found, using defaults');
+                    loadDefaultPeople();
+                }
                 
                 // Re-render the interface to reflect loaded data
                 renderWeekGrid();
                 renderTotalsTable();
                 
-                console.log('Schedule loaded successfully');
-                alert('Schedule loaded successfully!');
+                console.log('Schedule and people loaded successfully');
+                alert('Schedule and people loaded successfully!');
                 
             } catch (error) {
                 console.error('Error loading schedule:', error);
                 alert('Error loading schedule. Please try again. Error: ' + error.message);
             }
+        }
+        
+        function loadDefaultPeople() {
+            people.push(
+                { code: "KL", name: "Kiran Lutchman", role: "PA", color: "kl" },
+                { code: "CJ", name: "Calcea Johnson", role: "PA", color: "cj" },
+                { code: "CF", name: "Colin Frey", role: "WS", color: "cf" },
+                { code: "IR", name: "Ian Robertson", role: "WS", color: "ir" },
+                { code: "HF", name: "Heidi Faustermann", role: "WS", color: "hf" },
+                { code: "RD", name: "Rohan Durgam", role: "GA", color: "rd" },
+                { code: "KO", name: "Kelvin O'Young", role: "WS", color: "ko" },
+                { code: "MV", name: "Michael Vasquez", role: "WS", color: "mv" },
+                { code: "DB", name: "Devin Beltz", role: "WS", color: "db" },
+                { code: "LV", name: "Lauren Vaught", role: "WS", color: "lv" },
+                { code: "JS", name: "Jessica Peres", role: "WS", color: "js" },
+                { code: "SB", name: "Sarah Bedel", role: "WS", color: "sb" },
+                { code: "JM", name: "Jacob Mills", role: "WS", color: "jm" },
+                { code: "SC", name: "Scottie Burgess", role: "WS", color: "sc" }
+            );
         }
 
         function renderWeekGrid() {
@@ -1571,8 +1641,14 @@
         function clearTimes() {
             if (confirm('Clear all scheduled times? This will keep all students but remove their scheduled hours.')) {
                 schedule = {};
+                
+                // Persist the cleared state to localStorage
+                saveHybridSchedule();
+                
                 renderWeekGrid();
                 renderTotalsTable();
+                
+                console.log('Schedule cleared and persisted to localStorage');
             }
         }
 
@@ -1665,12 +1741,26 @@
         async function exportToPDF() {
             console.log('=== PDF EXPORT DEBUGGING START ===');
 
-            if (!window.jspdf || typeof html2canvas === 'undefined') {
-                alert('Required libraries failed to load. Please refresh the page.');
-                console.error('Library load check:', {
-                    jspdf: !!window.jspdf,
-                    html2canvas: typeof html2canvas !== 'undefined'
-                });
+            // Check for required libraries with detailed error reporting
+            const libraryStatus = {
+                jspdf: !!window.jspdf,
+                html2canvas: typeof html2canvas !== 'undefined'
+            };
+            
+            console.log('Library availability check:', libraryStatus);
+            
+            if (!libraryStatus.jspdf || !libraryStatus.html2canvas) {
+                const missingLibraries = [];
+                if (!libraryStatus.jspdf) missingLibraries.push('jsPDF');
+                if (!libraryStatus.html2canvas) missingLibraries.push('html2canvas');
+                
+                const errorMessage = `PDF export requires the following libraries: ${missingLibraries.join(', ')}. ` +
+                                   `These libraries are loaded from CDN and may have failed to load. ` +
+                                   `Please check your internet connection and refresh the page. ` +
+                                   `If the problem persists, try using the "Save Schedule" button instead to export as HTML.`;
+                
+                alert(errorMessage);
+                console.error('Library load check failed:', libraryStatus);
                 return;
             }
 
