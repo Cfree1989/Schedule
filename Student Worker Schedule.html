@@ -140,7 +140,21 @@
         const sampleSchedule={};
         let stateTracker={lastSaved:null,isDirty:false,saveQueue:[],autoSaveEnabled:true};
         let hybridData={trackedState:{},domVerification:{},metadata:{lastModified:null,version:'1.0',checksum:null}};
-        function loadPDFLibraries(){return new Promise((resolve,reject)=>{if(pdfLibrariesLoaded){resolve();return;}const libraries=[{url:'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',name:'jsPDF'},{url:'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js',name:'jsPDF AutoTable'},{url:'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',name:'html2canvas'}];let loadedCount=0;libraries.forEach(lib=>{const script=document.createElement('script');script.src=lib.url;script.onload=()=>{loadedCount++;if(loadedCount===libraries.length){pdfLibrariesLoaded=true;resolve();}};script.onerror=()=>reject(new Error(`Failed to load ${lib.name}`));document.head.appendChild(script);});});}
+        async function loadPDFLibraries(){
+            if(pdfLibrariesLoaded){return;}
+            const libraries=[
+                'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+                'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js',
+                'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
+            ];
+            for(const url of libraries){
+                await import(url);
+            }
+            const { jsPDF } = window.jspdf || {};
+            if(!jsPDF){throw new Error('jsPDF failed to initialize');}
+            window.jsPDF = jsPDF;
+            pdfLibrariesLoaded = true;
+        }
         function initializeSchedule(){localStorage.removeItem('studentWorkerPeople');loadHybridSchedule();Object.keys(schedule).forEach(key=>{if(key.includes('-S')){const newKey=key.replace('-S','-SC');schedule[newKey]=schedule[key];delete schedule[key];}});people.length=0;people.push({code:"KL",name:"Kiran Lutchman",role:"PA",color:"kl"},{code:"CJ",name:"Calcea Johnson",role:"PA",color:"cj"},{code:"CF",name:"Colin Frey",role:"WS",color:"cf"},{code:"IR",name:"Ian Robertson",role:"WS",color:"ir"},{code:"HF",name:"Heidi Faustermann",role:"WS",color:"hf"},{code:"RD",name:"Rohan Durgam",role:"GA",color:"rd"},{code:"KO",name:"Kelvin O'Young",role:"WS",color:"ko"},{code:"MV",name:"Michael Vasquez",role:"WS",color:"mv"},{code:"DB",name:"Devin Beltz",role:"WS",color:"db"},{code:"LV",name:"Lauren Vaught",role:"WS",color:"lv"},{code:"JS",name:"Jessica Peres",role:"WS",color:"js"},{code:"SB",name:"Sarah Bedel",role:"WS",color:"sb"},{code:"JM",name:"Jacob Mills",role:"WS",color:"jm"},{code:"SC",name:"Scottie Burgess",role:"WS",color:"sc"});renderWeekGrid();renderTotalsTable();initializeStateTracking();}
         function initializeStateTracking(){stateTracker.lastSaved=Date.now();stateTracker.isDirty=false;stateTracker.saveQueue=[];stateTracker.autoSaveEnabled=true;setupAutoSaveListeners();}
         function setupAutoSaveListeners(){const observer=new MutationObserver(()=>{if(stateTracker.autoSaveEnabled){queueAutoSave();}});const scheduleGrid=document.querySelector('.schedule-grid');if(scheduleGrid){observer.observe(scheduleGrid,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});}}
@@ -169,7 +183,70 @@
         function handleDragOver(e){e.preventDefault();e.dataTransfer.dropEffect='move';}
         function handleDrop(e){e.preventDefault();const draggedRow=e.target.closest('.student-row');if(draggedRow){const draggedIndex=parseInt(draggedRow.dataset.index);const targetIndex=parseInt(e.target.closest('.student-row').dataset.index);if(draggedIndex!==targetIndex){const draggedPerson=people[draggedIndex];people.splice(draggedIndex,1);people.splice(targetIndex,0,draggedPerson);renderWeekGrid();renderTotalsTable();}}}
         function handleDragEnd(e){e.target.classList.remove('dragging');}
-        async function exportToPDF(){try{await loadPDFLibraries();const header=document.querySelector('.header');const adminControls=document.querySelector('.admin-controls');const controls=document.querySelector('.controls');const scheduleGrid=document.querySelector('.schedule-grid');const totalsSection=document.querySelector('.totals-section');if(!header||!adminControls||!controls||!scheduleGrid||!totalsSection){alert('Required elements not found for PDF export');return;}const originalAdminDisplay=adminControls.style.display;const originalControlsDisplay=controls.style.display;adminControls.style.display='none';controls.style.display='none';const scheduleContainer=document.createElement('div');scheduleContainer.style.width='1200px';scheduleContainer.style.position='absolute';scheduleContainer.style.left='-9999px';scheduleContainer.style.top='0';scheduleContainer.style.background='white';scheduleContainer.style.padding='20px';const headerClone=header.cloneNode(true);scheduleContainer.appendChild(headerClone);const scheduleGridClone=scheduleGrid.cloneNode(true);scheduleContainer.appendChild(scheduleGridClone);document.body.appendChild(scheduleContainer);const totalsContainer=document.createElement('div');totalsContainer.style.width='1200px';totalsContainer.style.position='absolute';totalsContainer.style.left='-9999px';totalsContainer.style.top='0';totalsContainer.style.background='white';totalsContainer.style.padding='20px';const headerClone2=header.cloneNode(true);totalsContainer.appendChild(headerClone2);const totalsSectionClone=totalsSection.cloneNode(true);totalsContainer.appendChild(totalsSectionClone);document.body.appendChild(totalsContainer);const doc=new jsPDF('landscape','mm','a4');html2canvas(scheduleContainer,{scale:1,useCORS:true,allowTaint:true}).then(canvas1=>{const imgData1=canvas1.toDataURL('image/png');const imgWidth1=279.4;const imgHeight1=(canvas1.height*imgWidth1)/canvas1.width;const x1=0;const y1=0;doc.addImage(imgData1,'PNG',x1,y1,imgWidth1,imgHeight1);doc.addPage();html2canvas(totalsContainer,{scale:1,useCORS:true,allowTaint:true}).then(canvas2=>{const imgData2=canvas2.toDataURL('image/png');const imgWidth2=279.4;const imgHeight2=(canvas2.height*imgWidth2)/canvas2.width;const x2=0;const y2=0;doc.addImage(imgData2,'PNG',x2,y2,imgWidth2,imgHeight2);const fileName=`student_schedule_${new Date().toISOString().split('T')[0]}.pdf`;doc.save(fileName);adminControls.style.display=originalAdminDisplay;controls.style.display=originalControlsDisplay;document.body.removeChild(scheduleContainer);document.body.removeChild(totalsContainer);});});}catch(error){alert('Error loading PDF libraries: '+error.message);}}
+        async function exportToPDF(){
+            const header=document.querySelector('.header');
+            const adminControls=document.querySelector('.admin-controls');
+            const controls=document.querySelector('.controls');
+            const scheduleGrid=document.querySelector('.schedule-grid');
+            const totalsSection=document.querySelector('.totals-section');
+            let scheduleContainer,totalsContainer;
+            let originalAdminDisplay,originalControlsDisplay;
+            try{
+                await loadPDFLibraries();
+                const { jsPDF } = window.jspdf || {};
+                if(!jsPDF){throw new Error('jsPDF failed to initialize');}
+                if(!header||!adminControls||!controls||!scheduleGrid||!totalsSection){alert('Required elements not found for PDF export');return;}
+                originalAdminDisplay=adminControls.style.display;
+                originalControlsDisplay=controls.style.display;
+                adminControls.style.display='none';
+                controls.style.display='none';
+                scheduleContainer=document.createElement('div');
+                scheduleContainer.style.width='1200px';
+                scheduleContainer.style.position='absolute';
+                scheduleContainer.style.left='-9999px';
+                scheduleContainer.style.top='0';
+                scheduleContainer.style.background='white';
+                scheduleContainer.style.padding='20px';
+                const headerClone=header.cloneNode(true);
+                scheduleContainer.appendChild(headerClone);
+                const scheduleGridClone=scheduleGrid.cloneNode(true);
+                scheduleContainer.appendChild(scheduleGridClone);
+                document.body.appendChild(scheduleContainer);
+                totalsContainer=document.createElement('div');
+                totalsContainer.style.width='1200px';
+                totalsContainer.style.position='absolute';
+                totalsContainer.style.left='-9999px';
+                totalsContainer.style.top='0';
+                totalsContainer.style.background='white';
+                totalsContainer.style.padding='20px';
+                const headerClone2=header.cloneNode(true);
+                totalsContainer.appendChild(headerClone2);
+                const totalsSectionClone=totalsSection.cloneNode(true);
+                totalsContainer.appendChild(totalsSectionClone);
+                document.body.appendChild(totalsContainer);
+                const doc=new jsPDF('landscape','mm','a4');
+                const canvas1=await html2canvas(scheduleContainer,{scale:1,useCORS:true,allowTaint:true});
+                const imgData1=canvas1.toDataURL('image/png');
+                const imgWidth1=279.4;
+                const imgHeight1=(canvas1.height*imgWidth1)/canvas1.width;
+                doc.addImage(imgData1,'PNG',0,0,imgWidth1,imgHeight1);
+                doc.addPage();
+                const canvas2=await html2canvas(totalsContainer,{scale:1,useCORS:true,allowTaint:true});
+                const imgData2=canvas2.toDataURL('image/png');
+                const imgWidth2=279.4;
+                const imgHeight2=(canvas2.height*imgWidth2)/canvas2.width;
+                doc.addImage(imgData2,'PNG',0,0,imgWidth2,imgHeight2);
+                const fileName=`student_schedule_${new Date().toISOString().split('T')[0]}.pdf`;
+                doc.save(fileName);
+            }catch(error){
+                alert('Error exporting PDF: '+error.message);
+            }finally{
+                if(adminControls)adminControls.style.display=originalAdminDisplay;
+                if(controls)controls.style.display=originalControlsDisplay;
+                if(scheduleContainer&&scheduleContainer.parentNode)document.body.removeChild(scheduleContainer);
+                if(totalsContainer&&totalsContainer.parentNode)document.body.removeChild(totalsContainer);
+            }
+        }
         function openAddStudentModal(){document.getElementById('addStudentModal').style.display='block';document.getElementById('studentNameInput').focus();}
         function closeAddStudentModal(){document.getElementById('addStudentModal').style.display='none';document.getElementById('studentNameInput').value='';}
         function handleStudentNameKeypress(event){if(event.key==='Enter'){addStudentFromModal();}}
