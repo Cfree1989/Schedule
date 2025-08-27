@@ -139,7 +139,7 @@
         }
 
         .admin-btn.save {
-            background: #10b981;
+            background: #0aa149;
         }
 
         .admin-btn.save:hover {
@@ -664,12 +664,11 @@
         </div>
 
         <div class="admin-controls">
-                            <button class="admin-btn save" onclick="saveSchedule()">Quick Save</button>
-               <button class="admin-btn load" onclick="loadSchedule()" style="background: #f97316;">Load</button>
+                            <button class="admin-btn save" onclick="saveSchedule()" style="background: #0aa149;">Quick Save</button>
                             <button class="admin-btn clear" onclick="clearTimes()" style="background: #dc2626;">Clear Times</button>
-                           <button class="admin-btn export" onclick="exportToPDF()">Export</button>
-               <button class="admin-btn" onclick="exportSchedule()" style="background: #8b5cf6;">Save Schedule</button>
-               <button class="admin-btn" onclick="openAddStudentModal()" style="background: #10b981;">Add Student</button>
+                           <button class="admin-btn export" onclick="exportToPDF()">PDF</button>
+               <button class="admin-btn" onclick="exportSchedule()" style="background: #8b5cf6;">Download</button>
+               <button class="admin-btn" onclick="openAddStudentModal()" style="background: #f97316;">Add Student</button>
 
         </div>
     </div>
@@ -1219,43 +1218,7 @@
         
 
 
-        function loadSchedule() {
-            try {
-                console.log('Loading schedule and people from localStorage...');
-                
-                // Load the hybrid schedule data
-                loadHybridSchedule();
-                
-                // Also reload the people list from localStorage
-                people.length = 0;
-                const savedPeople = localStorage.getItem('studentWorkerPeople');
-                if (savedPeople) {
-                    try {
-                        const savedPeopleData = JSON.parse(savedPeople);
-                        savedPeopleData.forEach(person => people.push(person));
-                        console.log(`Loaded ${people.length} people from localStorage`);
-                    } catch (e) {
-                        console.error('Failed to parse saved people list', e);
-                        // Fall back to default people array
-                        loadDefaultPeople();
-                    }
-                } else {
-                    console.log('No saved people list found, using defaults');
-                    loadDefaultPeople();
-                }
-                
-                // Re-render the interface to reflect loaded data
-                renderWeekGrid();
-                renderTotalsTable();
-                
-                console.log('Schedule and people loaded successfully');
-                alert('Schedule and people loaded successfully!');
-                
-            } catch (error) {
-                console.error('Error loading schedule:', error);
-                alert('Error loading schedule. Please try again. Error: ' + error.message);
-            }
-        }
+
         
         function loadDefaultPeople() {
             people.push(
