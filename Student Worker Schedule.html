@@ -761,14 +761,7 @@
             // Load schedule data using hybrid approach
             loadHybridSchedule();
 
-            // Migrate any old "S" code schedule entries to "SC" code
-            Object.keys(schedule).forEach(key => {
-                if (key.includes('-S')) {
-                    const newKey = key.replace('-S', '-SC');
-                    schedule[newKey] = schedule[key];
-                    delete schedule[key];
-                }
-            });
+
             
             // FIXED: Proper data portability - prioritize embedded data over localStorage
             // Store the original embedded people data before any modifications
