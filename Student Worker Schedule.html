@@ -670,6 +670,7 @@
                            <button class="admin-btn export" onclick="exportToPDF()">Export</button>
                <button class="admin-btn" onclick="exportSchedule()" style="background: #8b5cf6;">Save Schedule</button>
                <button class="admin-btn" onclick="openAddStudentModal()" style="background: #10b981;">Add Student</button>
+
         </div>
     </div>
 
@@ -694,7 +695,7 @@
     </div>
 
     <script>
-        // Data model as specified in GPT Description.md
+        // Data model 
                 const people = [
         {
                 "code": "JD",
@@ -769,29 +770,49 @@
                 }
             });
             
-
+            // FIXED: Proper data portability - prioritize embedded data over localStorage
+            // Store the original embedded people data before any modifications
+            const embeddedPeople = [...people];
+            console.log('Embedded people data found:', embeddedPeople.length, 'students');
             
-            // Load people list from localStorage if available
-            people.length = 0;
-            const savedPeople = localStorage.getItem('studentWorkerPeople');
-            if (savedPeople) {
-                try {
-                    const savedPeopleData = JSON.parse(savedPeople);
-                    savedPeopleData.forEach(person => people.push(person));
-                } catch (e) {
-                    console.error('Failed to parse saved people list', e);
+            // Check if we have meaningful embedded people data (not just placeholders)
+            const hasEmbeddedPeople = embeddedPeople.length > 0 && 
+                                    embeddedPeople.some(person => 
+                                        person.name !== "John Doe" && 
+                                        person.name !== "Jane Smith" && 
+                                        person.name !== "Bob Wilson" && 
+                                        person.name !== "Alice Brown"
+                                    );
+            
+            if (hasEmbeddedPeople) {
+                console.log('Using embedded people data from file (portable data)');
+                // Keep the embedded people data - don't clear it!
+                // This ensures the file is truly portable
+            } else {
+                console.log('No meaningful embedded people data found, checking localStorage...');
+                // Only load from localStorage if we don't have meaningful embedded data
+                people.length = 0;
+                const savedPeople = localStorage.getItem('studentWorkerPeople');
+                if (savedPeople) {
+                    try {
+                        const savedPeopleData = JSON.parse(savedPeople);
+                        savedPeopleData.forEach(person => people.push(person));
+                        console.log('Loaded people data from localStorage:', people.length, 'students');
+                    } catch (e) {
+                        console.error('Failed to parse saved people list', e);
+                    }
                 }
-            }
 
-            // Fall back to placeholder students if nothing was loaded
-            if (people.length === 0) {
-                people.push(
-                    { code: "JD", name: "John Doe", role: "WS", color: "jd" },
-                    { code: "JS", name: "Jane Smith", role: "WS", color: "js" },
-                    { code: "BS", name: "Bob Wilson", role: "PA", color: "bs" },
-                    { code: "AS", name: "Alice Brown", role: "GA", color: "as" }
-                );
-                console.log('Loaded placeholder students. Replace these with your actual student workers.');
+                // Only fall back to placeholder students if we have no data at all
+                if (people.length === 0) {
+                    people.push(
+                        { code: "JD", name: "John Doe", role: "WS", color: "jd" },
+                        { code: "JS", name: "Jane Smith", role: "WS", color: "js" },
+                        { code: "BS", name: "Bob Wilson", role: "PA", color: "bs" },
+                        { code: "AS", name: "Alice Brown", role: "GA", color: "as" }
+                    );
+                    console.log('Loaded placeholder students. Replace these with your actual student workers.');
+                }
             }
             
             // Sanitize schedule data to remove assignments for non-existent students
@@ -803,6 +824,8 @@
             
             // Initialize state tracking after rendering
             initializeStateTracking();
+            
+
         }
         
         function sanitizeScheduleData() {
@@ -1118,14 +1141,14 @@
                         console.log(`Legacy schedule loaded: ${restoredCount} assignments restored`);
                     }
                 } else {
-                    // No saved data, check if sampleSchedule has meaningful data (from exported file)
+                    // FIXED: Enhanced embedded data detection and prioritization
                     const sampleScheduleKeys = Object.keys(sampleSchedule);
                     const hasEmbeddedData = sampleScheduleKeys.length > 0 && 
                                           sampleScheduleKeys.some(key => sampleSchedule[key] === true);
                     
                     if (hasEmbeddedData) {
-                        console.log('Found embedded schedule data in sampleSchedule, using it...');
-                        // Use the embedded data directly
+                        console.log('Found embedded schedule data in file, using it for portability...');
+                        // Use the embedded data directly - this ensures file portability
                         schedule = { ...sampleSchedule };
                         
                         // Initialize hybrid data with the embedded schedule
@@ -1138,9 +1161,11 @@
                             }
                         };
                         
-                        console.log(`Embedded schedule loaded: ${Object.keys(schedule).length} assignments restored`);
+                        console.log(`Embedded schedule loaded: ${Object.keys(schedule).length} assignments restored from file`);
+                        console.log('This ensures the file is portable and works even when localStorage is cleared');
                     } else {
                         // No embedded data, use default sample data
+                        console.log('No embedded schedule data found, using default sample data...');
                         hybridData = {
                             trackedState: sampleSchedule,
                             domVerification: { assignments: sampleSchedule },
@@ -1194,6 +1219,12 @@
                 localStorage.setItem('studentWorkerSchedule', JSON.stringify(schedule));
             }
         }
+        
+
+        
+
+        
+
 
         function loadSchedule() {
             try {
@@ -1252,6 +1283,10 @@
 
             // Use 1fr to make columns dynamically fill available space
             const gridColumns = `repeat(${numStudents}, 1fr)`;
+            
+            // FIXED: Add debugging to see what's being rendered
+            console.log('Rendering week grid with people:', people.map(p => p.code));
+            console.log('Grid columns:', gridColumns);
 
             days.forEach(day => {
                 const dayBlock = document.createElement('div');
