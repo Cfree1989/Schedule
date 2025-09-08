@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Worker Schedule | Single-file App</title>
+  <style>
+    :root {
+      --bg: #faf8f4;
+      --surface: #fffdf8;
+      --text: #2a2a2a;
+      --muted-text: #4a4a4a;
+      --border: #e5ded2;
+      --header-bg: #705c49;
+      --header-text: #ffffff;
+      --accent: #b88a51;
+      --accent-2: #7d9a6d;
+      --danger: #ab4e4e;
+      --focus: #2b7bbb;
+      --chip-bg: #efe7dc;
+
+      --day-header-bg: #eae3d9;
+      --legend-bg: #f2ebe0;
+      --grid-bg: #fffdf8;
+      --slot-h: 28px;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Liberation Sans", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .app {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      min-height: 100dvh;
+    }
+
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--header-bg);
+      color: var(--header-text);
+      border-bottom: 1px solid #5f4f3f;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .header-title {
+      font-weight: 700;
+      letter-spacing: 0.06em;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    button.icon-btn, .btn {
+      appearance: none;
+      border: 1px solid rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    button.icon-btn:hover, .btn:hover { background: rgba(255,255,255,0.16); }
+    button.danger { background: rgba(255, 90, 90, 0.16); border-color: rgba(255, 90, 90, 0.4); }
+    button.primary { background: rgba(255,255,255,0.25); }
+
+    .app-main {
+      padding: 16px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .schedule-shell {
+      display: grid;
+      grid-template-columns: minmax(60px, 80px) 1fr minmax(60px, 80px);
+      gap: 8px;
+      align-items: start;
+    }
+
+    .time-gutter, .time-gutter-right {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0;
+      padding-top: 1px; /* align time rows with slot rows */
+      position: sticky;
+      top: 64px;
+      max-height: calc(100dvh - 140px);
+      overflow: auto;
+      display: grid;
+      grid-template-rows: repeat(18, var(--slot-h));
+      gap: 0;
+    }
+
+    .time-gutter .time, .time-gutter-right .time {
+      font-size: 12px;
+      color: var(--muted-text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: var(--slot-h);
+    }
+
+    .week-grid {
+      background: var(--grid-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      overflow: auto;
+      max-height: calc(100dvh - 140px);
+    }
+
+    .day-block {
+      display: grid;
+      grid-template-rows: var(--slot-h) var(--slot-h) auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--surface);
+    }
+
+    .day-header {
+      background: var(--day-header-bg);
+      padding: 0 10px;
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+      letter-spacing: 0.03em;
+      height: var(--slot-h);
+      display: flex;
+      align-items: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .legend-row {
+      background: var(--legend-bg);
+      padding: 0 10px;
+      border-bottom: 1px solid var(--border);
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(28px, 1fr);
+      gap: 0;
+      height: var(--slot-h);
+      align-items: center;
+    }
+    .legend-chip {
+      background: var(--chip-bg);
+      color: var(--text);
+      font-weight: 600;
+      font-size: 12px;
+      border-radius: 6px;
+      padding: 6px 8px;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+
+    .schedule-rows {
+      padding: 0;
+      display: grid;
+      grid-template-rows: repeat(16, var(--slot-h));
+      gap: 0;
+    }
+    .slot-row { display: grid; grid-auto-flow: column; gap: 0; align-items: stretch; }
+    .slot-cell { border: 1px solid var(--border); border-left: none; background: #fff; }
+    .slot-row .slot-cell:first-child { border-left: 1px solid var(--border); }
+
+    .totals-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .totals-title { font-weight: 700; margin-bottom: 8px; }
+    table#totalsTable { width: 100%; border-collapse: collapse; }
+    table#totalsTable th, table#totalsTable td { border: 1px solid var(--border); padding: 8px 10px; font-size: 14px; }
+    table#totalsTable th { background: var(--legend-bg); text-align: left; }
+
+    .app-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      font-size: 12px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted-text);
+    }
+    .badges { display: flex; gap: 8px; align-items: center; }
+    .badge { background: var(--legend-bg); border: 1px solid var(--border); padding: 4px 8px; border-radius: 999px; }
+
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: none; align-items: center; justify-content: center; z-index: 50; }
+    .modal { width: min(520px, 92vw); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+    .modal h3 { margin: 0 0 10px 0; }
+    .modal .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .modal label { font-size: 12px; color: var(--muted-text); }
+    .modal input, .modal select { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: #fff; }
+    .modal .actions { margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end; }
+
+    /* Student color chips (deterministic palette) */
+    .swatch-0 { background: #D8C3A5; }
+    .swatch-1 { background: #E9D8A6; }
+    .swatch-2 { background: #CDE5D7; }
+    .swatch-3 { background: #F1D6C1; }
+    .swatch-4 { background: #BFD7EA; }
+
+    .visually-hidden { position: absolute !important; height: 1px; width: 1px; overflow: hidden; clip: rect(1px, 1px, 1px, 1px); white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <div class="app" id="appRoot">
+    <header class="app-header" role="banner">
+      <div class="header-title" id="headerTitle" aria-live="polite">STUDENT WORKER SCHEDULE | 2024–2025</div>
+      <div class="header-actions" role="toolbar" aria-label="Schedule actions">
+        <button class="icon-btn" id="btnSave" title="Quick Save (Ctrl+S)">Save</button>
+        <button class="icon-btn danger" id="btnClear" title="Clear all times">Clear Times</button>
+        <button class="icon-btn primary" id="btnPDF" title="Export PDF (Alt+P)">PDF</button>
+        <button class="icon-btn" id="btnDownload" title="Download single-file HTML">Download</button>
+        <button class="icon-btn" id="btnImport" title="Import from exported HTML">Import</button>
+        <button class="icon-btn" id="btnAddStudent" title="Add a student">Add Student</button>
+        <input class="visually-hidden" type="file" id="fileImport" accept=".html,.htm" />
+      </div>
+    </header>
+
+    <main class="app-main" role="main">
+      <section class="schedule-shell" aria-label="Schedule grid area">
+        <aside class="time-gutter" aria-label="Time gutter left" id="leftGutter"></aside>
+        <div class="week-grid" id="weekGrid" aria-label="Week grid">
+          <!-- Day blocks will be rendered here -->
+        </div>
+        <aside class="time-gutter-right" aria-label="Time gutter right" id="rightGutter"></aside>
+      </section>
+
+      <section class="totals-section" id="totalsSection" aria-label="Hours summary">
+        <div class="totals-title">Weekly Hours Summary</div>
+        <table id="totalsTable" aria-describedby="totalsHelp">
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Mon</th>
+              <th>Tue</th>
+              <th>Wed</th>
+              <th>Thu</th>
+              <th>Fri</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="7" style="text-align:center;color:var(--muted-text)">Totals will appear after grid is implemented</td></tr>
+          </tbody>
+        </table>
+        <div id="totalsHelp" class="visually-hidden">Shows per-student daily and weekly hours.</div>
+      </section>
+    </main>
+
+    <footer class="app-footer" role="contentinfo">
+      <div>Single-file app v1.0.0</div>
+      <div class="badges">
+        <div class="badge">Earth-tone Theme</div>
+        <div class="badge">Embedded Data</div>
+        <div class="badge">PDF Ready</div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Modal: Add/Edit Student -->
+  <div class="modal-overlay" id="studentModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="studentModalTitle">
+      <h3 id="studentModalTitle">Add Student</h3>
+      <div class="row">
+        <div>
+          <label for="studentName">Full name</label>
+          <input type="text" id="studentName" placeholder="e.g., Jane Doe" />
+        </div>
+        <div>
+          <label for="studentRole">Role</label>
+          <select id="studentRole">
+            <option value="PA">PA</option>
+            <option value="WS">WS</option>
+            <option value="GA">GA</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn" id="studentCancel">Cancel</button>
+        <button class="btn primary" id="studentSave">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Embedded data bootstrap -->
+  <script id="embedded-data" type="application/json">
+  {
+    "version": "1.0.0",
+    "metadata": {"createdAt": "${new Date().toISOString()}", "source": "embedded"},
+    "settings": { "headerTitle": "STUDENT WORKER SCHEDULE | 2024–2025" },
+    "students": [
+      {"id":"stu-1","name":"Jane Doe","code":"JD","role":"PA","colorIndex":0},
+      {"id":"stu-2","name":"John Doe","code":"JDo","role":"WS","colorIndex":1},
+      {"id":"stu-3","name":"Alex Kim","code":"AK","role":"GA","colorIndex":2},
+      {"id":"stu-4","name":"Sam Lee","code":"SL","role":"PA","colorIndex":3},
+      {"id":"stu-5","name":"Casey Ray","code":"CR","role":"WS","colorIndex":4}
+    ],
+    "schedule": {}
+  }
+  </script>
+
+  <!-- Libraries (UMD) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <script>
+    (function() {
+      const APP_VERSION = '1.0.0';
+      const STORAGE_KEYS = {
+        hybrid: 'labSchedule',
+        legacySchedule: 'studentWorkerSchedule',
+        legacyPeople: 'studentWorkerPeople',
+        appState: 'studentScheduleAppState'
+      };
+
+      const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+      const SLOT_LABELS = [
+        '8:30–9:00','9:00–9:30','9:30–10:00','10:00–10:30','10:30–11:00','11:00–11:30','11:30–12:00','12:00–12:30',
+        '12:30–1:00','1:00–1:30','1:30–2:00','2:00–2:30','2:30–3:00','3:00–3:30','3:30–4:00','4:00–4:30'
+      ];
+
+      function parseJSONSafe(text) {
+        try { return JSON.parse(text); } catch { return null; }
+      }
+
+      const DataManager = {
+        state: null,
+        getEmbedded() {
+          const el = document.getElementById('embedded-data');
+          if (!el) return null;
+          const text = el.textContent && el.textContent.trim();
+          if (!text) return null;
+          return parseJSONSafe(text);
+        },
+        migrateLegacy(legacySchedule, legacyPeople) {
+          // Minimal converter from legacy keys into new schema
+          const students = Array.isArray(legacyPeople) ? legacyPeople.map((p, idx) => ({
+            id: p.id || `legacy-${idx+1}`,
+            name: p.name || p.fullName || `Student ${idx+1}`,
+            code: p.code || (p.name ? p.name.split(' ').map(s=>s[0]).join('').slice(0,3).toUpperCase() : `S${idx+1}`),
+            role: p.role || 'WS',
+            colorIndex: idx % 5
+          })) : [];
+          return {
+            version: APP_VERSION,
+            metadata: { createdAt: new Date().toISOString(), source: 'legacy-migration' },
+            settings: { headerTitle: 'STUDENT WORKER SCHEDULE | 2024–2025' },
+            students,
+            schedule: legacySchedule && typeof legacySchedule === 'object' ? legacySchedule : {}
+          };
+        },
+        defaults() {
+          // Mirror embedded defaults if present
+          return this.getEmbedded() || {
+            version: APP_VERSION,
+            metadata: { createdAt: new Date().toISOString(), source: 'defaults' },
+            settings: { headerTitle: 'STUDENT WORKER SCHEDULE | 2024–2025' },
+            students: [
+              {id:'stu-1',name:'Jane Doe',code:'JD',role:'PA',colorIndex:0},
+              {id:'stu-2',name:'John Doe',code:'JDo',role:'WS',colorIndex:1},
+              {id:'stu-3',name:'Alex Kim',code:'AK',role:'GA',colorIndex:2},
+              {id:'stu-4',name:'Sam Lee',code:'SL',role:'PA',colorIndex:3},
+              {id:'stu-5',name:'Casey Ray',code:'CR',role:'WS',colorIndex:4}
+            ],
+            schedule: {}
+          };
+        },
+        load() {
+          // 1) Embedded JSON
+          const embedded = this.getEmbedded();
+          if (embedded && typeof embedded === 'object') {
+            this.state = embedded;
+            return this.state;
+          }
+          // 2) Hybrid/localStorage legacy
+          const hybrid = parseJSONSafe(localStorage.getItem(STORAGE_KEYS.hybrid));
+          if (hybrid && hybrid.trackedState) {
+            this.state = {
+              version: APP_VERSION,
+              metadata: { createdAt: new Date().toISOString(), source: 'hybrid-localStorage' },
+              settings: { headerTitle: 'STUDENT WORKER SCHEDULE | 2024–2025' },
+              students: Array.isArray(hybrid.students) ? hybrid.students : [],
+              schedule: hybrid.trackedState || {}
+            };
+            return this.state;
+          }
+          const legacySchedule = parseJSONSafe(localStorage.getItem(STORAGE_KEYS.legacySchedule));
+          const legacyPeople = parseJSONSafe(localStorage.getItem(STORAGE_KEYS.legacyPeople));
+          if (legacySchedule || legacyPeople) {
+            this.state = this.migrateLegacy(legacySchedule, legacyPeople);
+            return this.state;
+          }
+          // 3) App state cache
+          const appState = parseJSONSafe(localStorage.getItem(STORAGE_KEYS.appState));
+          if (appState && typeof appState === 'object') {
+            this.state = appState;
+            return this.state;
+          }
+          // 4) Defaults
+          this.state = this.defaults();
+          return this.state;
+        },
+        save() {
+          if (!this.state) return;
+          try {
+            localStorage.setItem(STORAGE_KEYS.appState, JSON.stringify(this.state));
+          } catch (e) {
+            console.warn('Save failed', e);
+          }
+        }
+      };
+
+      const UI = {
+        init() {
+          // Render header
+          const title = DataManager.state?.settings?.headerTitle || 'STUDENT WORKER SCHEDULE | 2024–2025';
+          document.getElementById('headerTitle').textContent = title;
+
+          // Render gutters
+          this.renderGutters();
+          // Render day blocks and placeholder rows
+          this.renderWeekShell(DataManager.state?.students || []);
+
+          // Wire actions
+          document.getElementById('btnSave').addEventListener('click', window.saveSchedule);
+          document.getElementById('btnClear').addEventListener('click', window.clearTimes);
+          document.getElementById('btnPDF').addEventListener('click', window.exportToPDF);
+          document.getElementById('btnDownload').addEventListener('click', window.exportSchedule);
+          document.getElementById('btnImport').addEventListener('click', () => document.getElementById('fileImport').click());
+          document.getElementById('fileImport').addEventListener('change', window.handleScheduleFileSelect);
+          document.getElementById('btnAddStudent').addEventListener('click', () => this.openStudentModal());
+
+          document.getElementById('studentCancel').addEventListener('click', () => this.closeStudentModal());
+          document.getElementById('studentSave').addEventListener('click', window.addStudentFromModal);
+
+          // Keyboard shortcut Alt+P → PDF
+          window.addEventListener('keydown', (e) => {
+            if (e.altKey && (e.key === 'p' || e.key === 'P')) {
+              e.preventDefault();
+              window.exportToPDF();
+            }
+          });
+        },
+        renderGutters() {
+          const left = document.getElementById('leftGutter');
+          const right = document.getElementById('rightGutter');
+          left.innerHTML = '';
+          right.innerHTML = '';
+          // Two empty rows to align with day header and legend
+          const empty = () => { const d = document.createElement('div'); d.className = 'time'; d.textContent = ''; return d; };
+          const e1L = empty();
+          const e2L = empty();
+          const e1R = empty();
+          const e2R = empty();
+          // Add a 1px bottom border on the second empty cell to account for header+legend borders
+          e2L.style.borderBottom = '1px solid var(--border)';
+          e2R.style.borderBottom = '1px solid var(--border)';
+          left.appendChild(e1L);
+          left.appendChild(e2L);
+          right.appendChild(e1R);
+          right.appendChild(e2R);
+          // 16 time rows matching slot rows
+          SLOT_LABELS.forEach(lbl => {
+            const a = document.createElement('div');
+            a.className = 'time';
+            a.textContent = lbl.replace('–','-');
+            left.appendChild(a);
+            const b = document.createElement('div');
+            b.className = 'time';
+            b.textContent = lbl.replace('–','-');
+            right.appendChild(b);
+          });
+        },
+        renderWeekShell(students) {
+          const root = document.getElementById('weekGrid');
+          root.innerHTML = '';
+          DAYS.forEach(day => {
+            const block = document.createElement('div');
+            block.className = 'day-block';
+            // Header
+            const header = document.createElement('div');
+            header.className = 'day-header';
+            header.textContent = day.toUpperCase();
+            block.appendChild(header);
+            // Legend
+            const legend = document.createElement('div');
+            legend.className = 'legend-row';
+            students.forEach((s) => {
+              const chip = document.createElement('div');
+              chip.className = `legend-chip swatch-${s.colorIndex ?? 0}`;
+              chip.textContent = s.code || '?';
+              chip.title = `${s.name} (${s.role || ''})`;
+              legend.appendChild(chip);
+            });
+            block.appendChild(legend);
+            // Rows placeholder
+            const rows = document.createElement('div');
+            rows.className = 'schedule-rows';
+            for (let i = 0; i < 16; i++) {
+              const row = document.createElement('div');
+              row.className = 'slot-row';
+              const columns = Math.max(1, students.length);
+              for (let c = 0; c < columns; c++) {
+                const cell = document.createElement('div');
+                cell.className = 'slot-cell';
+                row.appendChild(cell);
+              }
+              rows.appendChild(row);
+            }
+            block.appendChild(rows);
+            root.appendChild(block);
+          });
+        },
+        openStudentModal() {
+          document.getElementById('studentName').value = '';
+          document.getElementById('studentRole').value = 'PA';
+          document.getElementById('studentModal').style.display = 'flex';
+          setTimeout(() => document.getElementById('studentName').focus(), 0);
+        },
+        closeStudentModal() {
+          document.getElementById('studentModal').style.display = 'none';
+        }
+      };
+
+      // BFROS: Debug utility to measure vertical alignment between gutters and slot rows
+      window.debugRowAlignment = function debugRowAlignment() {
+        try {
+          const left = document.getElementById('leftGutter');
+          const right = document.getElementById('rightGutter');
+          const weekGrid = document.getElementById('weekGrid');
+          const firstDayBlock = weekGrid && weekGrid.querySelector('.day-block');
+          const rowsContainer = firstDayBlock && firstDayBlock.querySelector('.schedule-rows');
+          if (!left || !firstDayBlock || !rowsContainer) {
+            console.warn('Alignment debug: missing elements', { hasLeft: !!left, hasDay: !!firstDayBlock, hasRows: !!rowsContainer });
+            return;
+          }
+          const styles = {
+            weekGridPaddingTop: getComputedStyle(weekGrid).paddingTop,
+            rowsPaddingTop: getComputedStyle(rowsContainer).paddingTop,
+            rowsPaddingBottom: getComputedStyle(rowsContainer).paddingBottom,
+            dayHeaderH: getComputedStyle(firstDayBlock.querySelector('.day-header')).height,
+            legendH: getComputedStyle(firstDayBlock.querySelector('.legend-row')).height,
+            slotH: getComputedStyle(document.documentElement).getPropertyValue('--slot-h')
+          };
+          console.log('BFROS alignment styles:', styles);
+          const gutterRows = Array.from(left.children);
+          const slotRows = Array.from(rowsContainer.children);
+          const results = [];
+          for (let i = 0; i < 16; i++) {
+            const timeEl = gutterRows[i + 2]; // skip two empty rows
+            const slotRow = slotRows[i];
+            if (!timeEl || !slotRow) break;
+            const t = timeEl.getBoundingClientRect();
+            const s = slotRow.getBoundingClientRect();
+            results.push({
+              rowIndex: i,
+              timeTop: Math.round(t.top),
+              slotTop: Math.round(s.top),
+              deltaTop: Math.round(s.top - t.top),
+              timeH: Math.round(t.height),
+              slotH: Math.round(s.height),
+              deltaH: Math.round(s.height - t.height)
+            });
+          }
+          console.table(results);
+          const summary = results.reduce((acc, r) => {
+            acc.distinctTop.add(r.deltaTop);
+            acc.distinctH.add(r.deltaH);
+            return acc;
+          }, { distinctTop: new Set(), distinctH: new Set() });
+          console.log('Distinct deltaTop values:', Array.from(summary.distinctTop));
+          console.log('Distinct deltaH values:', Array.from(summary.distinctH));
+        } catch (err) {
+          console.error('Alignment debug failed:', err);
+        }
+      };
+
+      // Public API placeholders (to be implemented in next milestones)
+      window.saveSchedule = function saveSchedule() {
+        DataManager.save();
+        alert('Saved current state locally. Export to persist into a file.');
+      };
+
+      window.clearTimes = function clearTimes() {
+        if (!confirm('Clear all scheduled times? Students remain intact.')) return;
+        if (!DataManager.state) return;
+        DataManager.state.schedule = {};
+        DataManager.save();
+        alert('All times cleared.');
+      };
+
+      window.exportToPDF = async function exportToPDF() {
+        // Placeholder export: capture week grid area and dump into a 2-page PDF shell
+        try {
+          const { jsPDF } = window.jspdf || {};
+          if (!jsPDF || typeof html2canvas === 'undefined') {
+            alert('PDF libraries not loaded yet.');
+            return;
+          }
+          const grid = document.getElementById('weekGrid');
+          const canvas = await html2canvas(grid, { scale: 2, windowWidth: grid.scrollWidth, windowHeight: grid.scrollHeight });
+          const imgData = canvas.toDataURL('image/png');
+          const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
+          const pageWidth = doc.internal.pageSize.getWidth();
+          const pageHeight = doc.internal.pageSize.getHeight();
+          // Fit image within page with small margins
+          const margin = 24;
+          const availableW = pageWidth - margin * 2;
+          const availableH = pageHeight - margin * 2;
+          const ratio = Math.min(availableW / canvas.width, availableH / canvas.height);
+          const targetW = canvas.width * ratio;
+          const targetH = canvas.height * ratio;
+          doc.addImage(imgData, 'PNG', (pageWidth - targetW) / 2, (pageHeight - targetH) / 2, targetW, targetH);
+          // Page 2 placeholder
+          doc.addPage('letter', 'landscape');
+          doc.text('Totals page will appear here after implementation.', margin, margin + 12);
+          doc.save('student_schedule_preview.pdf');
+        } catch (err) {
+          console.error(err);
+          alert('PDF export failed: ' + (err && err.message ? err.message : 'Unknown error'));
+        }
+      };
+
+      window.exportSchedule = function exportSchedule() {
+        // Placeholder: basic single-file export with embedded JSON replaced
+        if (!DataManager.state) return;
+        const serializer = new XMLSerializer();
+        const cloneDoc = document.cloneNode(true);
+        const embedded = cloneDoc.getElementById('embedded-data');
+        if (embedded) {
+          embedded.textContent = JSON.stringify({
+            version: DataManager.state.version || APP_VERSION,
+            metadata: { ...DataManager.state.metadata, exportedAt: new Date().toISOString(), source: 'export' },
+            settings: DataManager.state.settings,
+            students: DataManager.state.students,
+            schedule: DataManager.state.schedule
+          });
+        }
+        const html = '<!DOCTYPE html>\n' + serializer.serializeToString(cloneDoc);
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+        const a = document.createElement('a');
+        const dateStr = new Date().toISOString().slice(0,10);
+        a.download = `student_schedule_${dateStr}.html`;
+        a.href = URL.createObjectURL(blob);
+        a.click();
+        URL.revokeObjectURL(a.href);
+      };
+
+      window.handleScheduleFileSelect = function handleScheduleFileSelect(e) {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(reader.result, 'text/html');
+            const embedded = doc.getElementById('embedded-data');
+            if (!embedded) throw new Error('No embedded data found in file.');
+            const imported = JSON.parse(embedded.textContent || '{}');
+            if (!imported || typeof imported !== 'object') throw new Error('Invalid embedded data.');
+            DataManager.state = imported;
+            DataManager.save();
+            // Re-render shell with imported data
+            UI.init();
+            alert('Import successful.');
+          } catch (err) {
+            console.error(err);
+            alert('Import failed: ' + (err && err.message ? err.message : 'Unknown error'));
+          }
+        };
+        reader.readAsText(file);
+        // reset input for subsequent imports
+        e.target.value = '';
+      };
+
+      window.addStudentFromModal = function addStudentFromModal() {
+        const name = document.getElementById('studentName').value.trim();
+        const role = document.getElementById('studentRole').value;
+        if (!name) { alert('Please enter a name.'); return; }
+        const code = name.split(/\s+/).map(s => s[0]).join('').slice(0,3).toUpperCase();
+        const colorIndex = (DataManager.state.students.length) % 5;
+        const id = 'stu-' + (Date.now());
+        DataManager.state.students.push({ id, name, code, role, colorIndex });
+        DataManager.save();
+        // Re-render legend rows with new student
+        UI.renderWeekShell(DataManager.state.students);
+        // Close modal
+        document.getElementById('studentModal').style.display = 'none';
+      };
+
+      // Boot
+      DataManager.load();
+      UI.init();
+      // Expose for debugging
+      window.__DataManager = DataManager;
+      window.__UI = UI;
+    })();
+  </script>
+</body>
+</html>
+
+
