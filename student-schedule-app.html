@@ -173,6 +173,9 @@
       text-align: center;
       border: 1px solid var(--border);
     }
+    /* Align legend cell borders with slot cell borders (avoid double-left borders) */
+    .legend-row .legend-chip { border-left: none; }
+    .legend-row .legend-chip:first-child { border-left: 1px solid var(--border); }
 
     .schedule-rows {
       padding: 0;
@@ -512,6 +515,9 @@
             // Legend
             const legend = document.createElement('div');
             legend.className = 'legend-row';
+            const columns = Math.max(1, students.length);
+            const gridColumns = `repeat(${columns}, 1fr)`;
+            legend.style.gridTemplateColumns = gridColumns;
             students.forEach((s) => {
               const chip = document.createElement('div');
               chip.className = `legend-chip swatch-${s.colorIndex ?? 0}`;
@@ -526,7 +532,7 @@
             for (let i = 0; i < 16; i++) {
               const row = document.createElement('div');
               row.className = 'slot-row';
-              const columns = Math.max(1, students.length);
+              row.style.gridTemplateColumns = gridColumns;
               for (let c = 0; c < columns; c++) {
                 const cell = document.createElement('div');
                 cell.className = 'slot-cell';
@@ -721,6 +727,58 @@
       // Expose for debugging
       window.__DataManager = DataManager;
       window.__UI = UI;
+      
+      // BFROS: Debug horizontal column alignment between legend chips and slot cells
+      window.debugColumnAlignment = function debugColumnAlignment() {
+        try {
+          const weekGrid = document.getElementById('weekGrid');
+          const day = weekGrid && weekGrid.querySelector('.day-block');
+          const legend = day && day.querySelector('.legend-row');
+          const firstRow = day && day.querySelector('.slot-row');
+          if (!legend || !firstRow) {
+            console.warn('Column debug: missing legend or first slot row', { hasLegend: !!legend, hasRow: !!firstRow });
+            return;
+          }
+          const chips = Array.from(legend.children);
+          const cells = Array.from(firstRow.children);
+          const count = Math.min(chips.length, cells.length);
+          const styles = {
+            legendPaddingLeft: getComputedStyle(legend).paddingLeft,
+            legendPaddingRight: getComputedStyle(legend).paddingRight,
+            legendColumns: getComputedStyle(legend).gridTemplateColumns,
+            rowColumns: getComputedStyle(firstRow).gridTemplateColumns,
+            firstLegendBorderLeft: chips[0] ? getComputedStyle(chips[0]).borderLeftWidth : 'n/a',
+            firstCellBorderLeft: cells[0] ? getComputedStyle(cells[0]).borderLeftWidth : 'n/a'
+          };
+          console.log('BFROS columns styles:', styles);
+          const results = [];
+          for (let i = 0; i < count; i++) {
+            const a = chips[i].getBoundingClientRect();
+            const b = cells[i].getBoundingClientRect();
+            results.push({
+              colIndex: i,
+              legendLeft: Math.round(a.left),
+              slotLeft: Math.round(b.left),
+              deltaLeft: Math.round(b.left - a.left),
+              legendRight: Math.round(a.right),
+              slotRight: Math.round(b.right),
+              deltaRight: Math.round(b.right - a.right),
+              legendW: Math.round(a.width),
+              slotW: Math.round(b.width),
+              deltaW: Math.round(b.width - a.width)
+            });
+          }
+          console.table(results);
+          const dLeft = Array.from(new Set(results.map(r => r.deltaLeft)));
+          const dW = Array.from(new Set(results.map(r => r.deltaW)));
+          const dRight = Array.from(new Set(results.map(r => r.deltaRight)));
+          console.log('Distinct deltaLeft:', dLeft);
+          console.log('Distinct deltaW:', dW);
+          console.log('Distinct deltaRight:', dRight);
+        } catch (err) {
+          console.error('Column alignment debug failed:', err);
+        }
+      };
     })();
   </script>
 </body>
