@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Student Worker Schedule | Single-file App</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23705c49'/%3E%3Ctext x='50%25' y='50%25' dy='.35em' text-anchor='middle' font-family='Segoe UI, Arial' font-size='32' fill='%23ffffff'%3ES%3C/text%3E%3C/svg%3E" />
   <style>
     :root {
       --bg: #faf8f4;
@@ -154,7 +155,7 @@
 
     .legend-row {
       background: var(--legend-bg);
-      padding: 0 10px;
+      padding: 0;
       border-bottom: 1px solid var(--border);
       display: grid;
       grid-auto-flow: column;
@@ -555,58 +556,6 @@
         }
       };
 
-      // BFROS: Debug utility to measure vertical alignment between gutters and slot rows
-      window.debugRowAlignment = function debugRowAlignment() {
-        try {
-          const left = document.getElementById('leftGutter');
-          const right = document.getElementById('rightGutter');
-          const weekGrid = document.getElementById('weekGrid');
-          const firstDayBlock = weekGrid && weekGrid.querySelector('.day-block');
-          const rowsContainer = firstDayBlock && firstDayBlock.querySelector('.schedule-rows');
-          if (!left || !firstDayBlock || !rowsContainer) {
-            console.warn('Alignment debug: missing elements', { hasLeft: !!left, hasDay: !!firstDayBlock, hasRows: !!rowsContainer });
-            return;
-          }
-          const styles = {
-            weekGridPaddingTop: getComputedStyle(weekGrid).paddingTop,
-            rowsPaddingTop: getComputedStyle(rowsContainer).paddingTop,
-            rowsPaddingBottom: getComputedStyle(rowsContainer).paddingBottom,
-            dayHeaderH: getComputedStyle(firstDayBlock.querySelector('.day-header')).height,
-            legendH: getComputedStyle(firstDayBlock.querySelector('.legend-row')).height,
-            slotH: getComputedStyle(document.documentElement).getPropertyValue('--slot-h')
-          };
-          console.log('BFROS alignment styles:', styles);
-          const gutterRows = Array.from(left.children);
-          const slotRows = Array.from(rowsContainer.children);
-          const results = [];
-          for (let i = 0; i < 16; i++) {
-            const timeEl = gutterRows[i + 2]; // skip two empty rows
-            const slotRow = slotRows[i];
-            if (!timeEl || !slotRow) break;
-            const t = timeEl.getBoundingClientRect();
-            const s = slotRow.getBoundingClientRect();
-            results.push({
-              rowIndex: i,
-              timeTop: Math.round(t.top),
-              slotTop: Math.round(s.top),
-              deltaTop: Math.round(s.top - t.top),
-              timeH: Math.round(t.height),
-              slotH: Math.round(s.height),
-              deltaH: Math.round(s.height - t.height)
-            });
-          }
-          console.table(results);
-          const summary = results.reduce((acc, r) => {
-            acc.distinctTop.add(r.deltaTop);
-            acc.distinctH.add(r.deltaH);
-            return acc;
-          }, { distinctTop: new Set(), distinctH: new Set() });
-          console.log('Distinct deltaTop values:', Array.from(summary.distinctTop));
-          console.log('Distinct deltaH values:', Array.from(summary.distinctH));
-        } catch (err) {
-          console.error('Alignment debug failed:', err);
-        }
-      };
 
       // Public API placeholders (to be implemented in next milestones)
       window.saveSchedule = function saveSchedule() {
@@ -724,61 +673,9 @@
       // Boot
       DataManager.load();
       UI.init();
-      // Expose for debugging
+      // Expose minimal objects only if needed later
       window.__DataManager = DataManager;
       window.__UI = UI;
-      
-      // BFROS: Debug horizontal column alignment between legend chips and slot cells
-      window.debugColumnAlignment = function debugColumnAlignment() {
-        try {
-          const weekGrid = document.getElementById('weekGrid');
-          const day = weekGrid && weekGrid.querySelector('.day-block');
-          const legend = day && day.querySelector('.legend-row');
-          const firstRow = day && day.querySelector('.slot-row');
-          if (!legend || !firstRow) {
-            console.warn('Column debug: missing legend or first slot row', { hasLegend: !!legend, hasRow: !!firstRow });
-            return;
-          }
-          const chips = Array.from(legend.children);
-          const cells = Array.from(firstRow.children);
-          const count = Math.min(chips.length, cells.length);
-          const styles = {
-            legendPaddingLeft: getComputedStyle(legend).paddingLeft,
-            legendPaddingRight: getComputedStyle(legend).paddingRight,
-            legendColumns: getComputedStyle(legend).gridTemplateColumns,
-            rowColumns: getComputedStyle(firstRow).gridTemplateColumns,
-            firstLegendBorderLeft: chips[0] ? getComputedStyle(chips[0]).borderLeftWidth : 'n/a',
-            firstCellBorderLeft: cells[0] ? getComputedStyle(cells[0]).borderLeftWidth : 'n/a'
-          };
-          console.log('BFROS columns styles:', styles);
-          const results = [];
-          for (let i = 0; i < count; i++) {
-            const a = chips[i].getBoundingClientRect();
-            const b = cells[i].getBoundingClientRect();
-            results.push({
-              colIndex: i,
-              legendLeft: Math.round(a.left),
-              slotLeft: Math.round(b.left),
-              deltaLeft: Math.round(b.left - a.left),
-              legendRight: Math.round(a.right),
-              slotRight: Math.round(b.right),
-              deltaRight: Math.round(b.right - a.right),
-              legendW: Math.round(a.width),
-              slotW: Math.round(b.width),
-              deltaW: Math.round(b.width - a.width)
-            });
-          }
-          console.table(results);
-          const dLeft = Array.from(new Set(results.map(r => r.deltaLeft)));
-          const dW = Array.from(new Set(results.map(r => r.deltaW)));
-          const dRight = Array.from(new Set(results.map(r => r.deltaRight)));
-          console.log('Distinct deltaLeft:', dLeft);
-          console.log('Distinct deltaW:', dW);
-          console.log('Distinct deltaRight:', dRight);
-        } catch (err) {
-          console.error('Column alignment debug failed:', err);
-        }
-      };
     })();
   </script>
 </body>
