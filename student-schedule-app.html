@@ -185,7 +185,7 @@
       gap: 0;
     }
     .slot-row { display: grid; grid-auto-flow: column; gap: 0; align-items: stretch; }
-    .slot-cell { border: 1px solid var(--border); border-left: none; background: #fff; }
+    .slot-cell { border: 1px solid var(--border); border-left: none; background: #fff; cursor: pointer; }
     .slot-row .slot-cell:first-child { border-left: 1px solid var(--border); }
 
     .totals-section {
@@ -343,6 +343,7 @@
         legacyPeople: 'studentWorkerPeople',
         appState: 'studentScheduleAppState'
       };
+      
 
       const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
       const SLOT_LABELS = [
@@ -449,8 +450,9 @@
 
           // Render gutters
           this.renderGutters();
-          // Render day blocks and placeholder rows
-          this.renderWeekShell(DataManager.state?.students || []);
+          // Render interactive week grid and totals
+          this.renderWeek(DataManager.state?.students || []);
+          this.renderTotals();
 
           // Wire actions
           document.getElementById('btnSave').addEventListener('click', window.saveSchedule);
@@ -502,10 +504,67 @@
             right.appendChild(b);
           });
         },
-        renderWeekShell(students) {
+        // Compute and render totals table from state
+        renderTotals() {
+          const tbody = document.querySelector('#totalsTable tbody');
+          if (!tbody) return;
+          const students = (DataManager.state && DataManager.state.students) || [];
+          const schedule = (DataManager.state && DataManager.state.schedule) || {};
+          const makeKey = (di, si, sid) => `${di}|${si}|${sid}`;
+          tbody.innerHTML = '';
+          // Per-student rows
+          students.forEach((s) => {
+            const tr = document.createElement('tr');
+            const nameCell = document.createElement('td');
+            nameCell.textContent = `${s.name} ${s.role || ''}`.trim();
+            tr.appendChild(nameCell);
+            let weekly = 0;
+            for (let di = 0; di < 5; di++) {
+              let dayTotal = 0;
+              for (let si = 0; si < 16; si++) {
+                if (schedule[makeKey(di, si, s.id)]) dayTotal += 0.5;
+              }
+              weekly += dayTotal;
+              const td = document.createElement('td');
+              td.textContent = dayTotal.toFixed(2);
+              tr.appendChild(td);
+            }
+            const totalTd = document.createElement('td');
+            totalTd.textContent = weekly.toFixed(2);
+            tr.appendChild(totalTd);
+            tbody.appendChild(tr);
+          });
+          // Daily totals row
+          const totalRow = document.createElement('tr');
+          totalRow.style.fontWeight = '700';
+          const labelTd = document.createElement('td');
+          labelTd.textContent = 'DAILY TOTALS';
+          totalRow.appendChild(labelTd);
+          let grand = 0;
+          for (let di = 0; di < 5; di++) {
+            let daySum = 0;
+            for (const s of students) {
+              for (let si = 0; si < 16; si++) {
+                if (schedule[makeKey(di, si, s.id)]) daySum += 0.5;
+              }
+            }
+            grand += daySum;
+            const td = document.createElement('td');
+            td.textContent = daySum.toFixed(2);
+            totalRow.appendChild(td);
+          }
+          const grandTd = document.createElement('td');
+          grandTd.textContent = grand.toFixed(2);
+          totalRow.appendChild(grandTd);
+          tbody.appendChild(totalRow);
+        },
+        // Render full interactive week grid from state
+        renderWeek(students) {
           const root = document.getElementById('weekGrid');
           root.innerHTML = '';
-          DAYS.forEach(day => {
+          const schedule = (DataManager.state && DataManager.state.schedule) || {};
+          const makeKey = (di, si, sid) => `${di}|${si}|${sid}`;
+          DAYS.forEach((day, di) => {
             const block = document.createElement('div');
             block.className = 'day-block';
             // Header
@@ -527,16 +586,46 @@
               legend.appendChild(chip);
             });
             block.appendChild(legend);
-            // Rows placeholder
+            // Rows with interactive cells
             const rows = document.createElement('div');
             rows.className = 'schedule-rows';
-            for (let i = 0; i < 16; i++) {
+            for (let si = 0; si < 16; si++) {
               const row = document.createElement('div');
               row.className = 'slot-row';
               row.style.gridTemplateColumns = gridColumns;
               for (let c = 0; c < columns; c++) {
                 const cell = document.createElement('div');
                 cell.className = 'slot-cell';
+                const student = students[c];
+                if (student) {
+                  cell.dataset.dayIndex = String(di);
+                  cell.dataset.slotIndex = String(si);
+                  cell.dataset.studentId = student.id;
+                  cell.title = `${day} ${SLOT_LABELS[si]} • ${student.name}`;
+                  const k = makeKey(di, si, student.id);
+                  const assigned = !!schedule[k];
+                  if (assigned) {
+                    cell.classList.add(`swatch-${student.colorIndex ?? 0}`);
+                    cell.setAttribute('aria-pressed', 'true');
+                  } else {
+                    cell.setAttribute('aria-pressed', 'false');
+                  }
+                  cell.addEventListener('click', () => {
+                    const wasAssigned = !!DataManager.state.schedule[k];
+                    const next = !wasAssigned;
+                    if (next) {
+                      DataManager.state.schedule[k] = true;
+                      cell.classList.add(`swatch-${student.colorIndex ?? 0}`);
+                      cell.setAttribute('aria-pressed', 'true');
+                    } else {
+                      delete DataManager.state.schedule[k];
+                      cell.classList.remove(`swatch-${student.colorIndex ?? 0}`);
+                      cell.setAttribute('aria-pressed', 'false');
+                    }
+                    DataManager.save();
+                    UI.renderTotals();
+                  });
+                }
                 row.appendChild(cell);
               }
               rows.appendChild(row);
@@ -560,6 +649,7 @@
       // Public API placeholders (to be implemented in next milestones)
       window.saveSchedule = function saveSchedule() {
         DataManager.save();
+        UI.renderTotals();
         alert('Saved current state locally. Export to persist into a file.');
       };
 
@@ -568,6 +658,8 @@
         if (!DataManager.state) return;
         DataManager.state.schedule = {};
         DataManager.save();
+        UI.renderWeek(DataManager.state.students || []);
+        UI.renderTotals();
         alert('All times cleared.');
       };
 
@@ -664,8 +756,9 @@
         const id = 'stu-' + (Date.now());
         DataManager.state.students.push({ id, name, code, role, colorIndex });
         DataManager.save();
-        // Re-render legend rows with new student
-        UI.renderWeekShell(DataManager.state.students);
+        // Re-render grid and totals with new student
+        UI.renderWeek(DataManager.state.students);
+        UI.renderTotals();
         // Close modal
         document.getElementById('studentModal').style.display = 'none';
       };
