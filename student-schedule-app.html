@@ -187,12 +187,15 @@
     .slot-row { display: grid; grid-auto-flow: column; gap: 0; align-items: stretch; }
     .slot-cell { border: 1px solid var(--border); border-left: none; background: #fff; cursor: pointer; }
     .slot-row .slot-cell:first-child { border-left: 1px solid var(--border); }
-    .slot-cell:focus { outline: 2px solid var(--focus); outline-offset: -2px; }
+    .slot-cell:focus { outline: 2px solid var(--focus); outline-offset: -2px; position: relative; z-index: 2; }
     /* Hover triangulation: highlight current row and column */
     .slot-row.is-hover { background: rgba(0,0,0,0.035); }
-    .slot-cell.col-hover { outline: 2px solid var(--focus); outline-offset: -2px; }
+    .slot-cell.col-hover { outline: 2px solid var(--focus); outline-offset: -2px; position: relative; z-index: 2; }
     .time.is-hover { background: rgba(0,0,0,0.06); font-weight: 600; }
-    .legend-chip.is-hover { outline: 2px solid var(--focus); outline-offset: -2px; }
+    .legend-chip.is-hover { outline: 2px solid var(--focus); outline-offset: -2px; position: relative; z-index: 2; }
+
+    /* Paint indicator */
+    .paint-indicator { position: fixed; pointer-events: none; z-index: 100; background: rgba(0,0,0,0.75); color: #fff; padding: 4px 8px; border-radius: 6px; font-size: 12px; transform: translate(12px, -12px); }
 
     .totals-section {
       background: var(--surface);
@@ -221,10 +224,13 @@
     /* Modal */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: none; align-items: center; justify-content: center; z-index: 50; }
     .modal { width: min(520px, 92vw); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+    .modal input:focus, .modal select:focus { position: relative; z-index: 1; outline: none; box-shadow: inset 0 0 0 2px var(--focus); }
     .modal h3 { margin: 0 0 10px 0; }
-    .modal .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .modal .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .modal .row > * { min-width: 0; }
     .modal label { font-size: 12px; color: var(--muted-text); }
-    .modal input, .modal select { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: #fff; }
+    .modal input, .modal select { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: #fff; box-sizing: border-box; }
+    @media (max-width: 520px) { .modal .row { grid-template-columns: 1fr; } }
     .modal .actions { margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end; }
 
     /* Student color chips (deterministic palette) */
@@ -472,6 +478,19 @@
           document.getElementById('studentCancel').addEventListener('click', () => this.closeStudentModal());
           document.getElementById('studentSave').addEventListener('click', window.addStudentFromModal);
 
+          // Close modal on overlay click
+          document.getElementById('studentModal').addEventListener('click', (e) => {
+            if (e.target && e.target.id === 'studentModal') this.closeStudentModal();
+          });
+          // Close modal on Escape
+          window.addEventListener('keydown', (e) => {
+            const modal = document.getElementById('studentModal');
+            if (e.key === 'Escape' && modal && modal.style.display === 'flex') {
+              e.preventDefault();
+              this.closeStudentModal();
+            }
+          });
+
           // Keyboard shortcut Alt+P → PDF
           window.addEventListener('keydown', (e) => {
             if (e.altKey && (e.key === 'p' || e.key === 'P')) {
@@ -572,6 +591,15 @@
           root.setAttribute('role', 'grid');
           const leftGutter = document.getElementById('leftGutter');
           const rightGutter = document.getElementById('rightGutter');
+          // Ensure paint indicator exists
+          let indicator = document.getElementById('paintIndicator');
+          if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.id = 'paintIndicator';
+            indicator.className = 'paint-indicator';
+            indicator.style.display = 'none';
+            document.body.appendChild(indicator);
+          }
           const schedule = (DataManager.state && DataManager.state.schedule) || {};
           const makeKey = (di, si, sid) => `${di}|${si}|${sid}`;
           // Roving tabindex: only one cell should be tabbable at a time
@@ -703,6 +731,11 @@
                     root.style.userSelect = 'none';
                     // Suppress the synthetic click that follows pointerup
                     cell.dataset.skipNextClick = '1';
+                    // Show indicator
+                    indicator.style.display = 'block';
+                    indicator.textContent = '0.00 h';
+                    indicator.style.left = ev.clientX + 'px';
+                    indicator.style.top = ev.clientY + 'px';
 
                     const applyToCell = (target) => {
                       if (!target) return;
@@ -738,6 +771,12 @@
                       const el = document.elementFromPoint(moveEv.clientX, moveEv.clientY);
                       const t = el && el.closest ? el.closest('.slot-cell') : null;
                       if (t) applyToCell(t);
+                      // Update indicator position and time
+                      indicator.style.left = moveEv.clientX + 'px';
+                      indicator.style.top = moveEv.clientY + 'px';
+                      const slots = painting.visited.size;
+                      const hours = (slots * 0.5).toFixed(2);
+                      indicator.textContent = `${hours} h`;
                     };
                     const onPointerEnd = (endEv) => {
                       if (endEv.pointerId !== painting.pointerId) return;
@@ -748,6 +787,8 @@
                       window.removeEventListener('pointerup', onPointerEnd, true);
                       window.removeEventListener('pointercancel', onPointerEnd, true);
                       painting.lockStudentId = null;
+                      // Hide indicator
+                      indicator.style.display = 'none';
                       DataManager.save();
                       UI.renderTotals();
                     };
