@@ -187,6 +187,12 @@
     .slot-row { display: grid; grid-auto-flow: column; gap: 0; align-items: stretch; }
     .slot-cell { border: 1px solid var(--border); border-left: none; background: #fff; cursor: pointer; }
     .slot-row .slot-cell:first-child { border-left: 1px solid var(--border); }
+    .slot-cell:focus { outline: 2px solid var(--focus); outline-offset: -2px; }
+    /* Hover triangulation: highlight current row and column */
+    .slot-row.is-hover { background: rgba(0,0,0,0.035); }
+    .slot-cell.col-hover { outline: 2px solid var(--focus); outline-offset: -2px; }
+    .time.is-hover { background: rgba(0,0,0,0.06); font-weight: 600; }
+    .legend-chip.is-hover { outline: 2px solid var(--focus); outline-offset: -2px; }
 
     .totals-section {
       background: var(--surface);
@@ -249,7 +255,7 @@
     <main class="app-main" role="main">
       <section class="schedule-shell" aria-label="Schedule grid area">
         <aside class="time-gutter" aria-label="Time gutter left" id="leftGutter"></aside>
-        <div class="week-grid" id="weekGrid" aria-label="Week grid">
+        <div class="week-grid" id="weekGrid" role="grid" aria-label="Week grid">
           <!-- Day blocks will be rendered here -->
         </div>
         <aside class="time-gutter-right" aria-label="Time gutter right" id="rightGutter"></aside>
@@ -562,8 +568,22 @@
         renderWeek(students) {
           const root = document.getElementById('weekGrid');
           root.innerHTML = '';
+          // Ensure ARIA role for grid container
+          root.setAttribute('role', 'grid');
+          const leftGutter = document.getElementById('leftGutter');
+          const rightGutter = document.getElementById('rightGutter');
           const schedule = (DataManager.state && DataManager.state.schedule) || {};
           const makeKey = (di, si, sid) => `${di}|${si}|${sid}`;
+          // Roving tabindex: only one cell should be tabbable at a time
+          let initialTabIndexSet = false;
+          // Painting state shared across cells for current render
+          const painting = {
+            active: false,
+            mode: 'assign', // or 'erase'
+            pointerId: null,
+            visited: new Set(),
+            lockStudentId: null
+          };
           DAYS.forEach((day, di) => {
             const block = document.createElement('div');
             block.className = 'day-block';
@@ -578,12 +598,15 @@
             const columns = Math.max(1, students.length);
             const gridColumns = `repeat(${columns}, 1fr)`;
             legend.style.gridTemplateColumns = gridColumns;
-            students.forEach((s) => {
+            const legendChips = [];
+            students.forEach((s, chipIdx) => {
               const chip = document.createElement('div');
               chip.className = `legend-chip swatch-${s.colorIndex ?? 0}`;
               chip.textContent = s.code || '?';
               chip.title = `${s.name} (${s.role || ''})`;
+              chip.dataset.colIndex = String(chipIdx);
               legend.appendChild(chip);
+              legendChips.push(chip);
             });
             block.appendChild(legend);
             // Rows with interactive cells
@@ -593,13 +616,19 @@
               const row = document.createElement('div');
               row.className = 'slot-row';
               row.style.gridTemplateColumns = gridColumns;
+              row.setAttribute('role', 'row');
               for (let c = 0; c < columns; c++) {
                 const cell = document.createElement('div');
                 cell.className = 'slot-cell';
+                cell.setAttribute('role', 'gridcell');
+                // Roving tabindex: first created cell is tabbable; others are programmatically focusable only
+                if (!initialTabIndexSet) { cell.tabIndex = 0; initialTabIndexSet = true; } else { cell.tabIndex = -1; }
                 const student = students[c];
+                // Always annotate navigational indices for keyboard movement
+                cell.dataset.dayIndex = String(di);
+                cell.dataset.slotIndex = String(si);
+                cell.dataset.colIndex = String(c);
                 if (student) {
-                  cell.dataset.dayIndex = String(di);
-                  cell.dataset.slotIndex = String(si);
                   cell.dataset.studentId = student.id;
                   cell.title = `${day} ${SLOT_LABELS[si]} • ${student.name}`;
                   const k = makeKey(di, si, student.id);
@@ -610,7 +639,9 @@
                   } else {
                     cell.setAttribute('aria-pressed', 'false');
                   }
-                  cell.addEventListener('click', () => {
+                  cell.addEventListener('click', (e) => {
+                    if (cell.dataset.skipNextClick === '1') { cell.dataset.skipNextClick = '0'; e.preventDefault(); return; }
+                    if (painting && painting.active) return;
                     const wasAssigned = !!DataManager.state.schedule[k];
                     const next = !wasAssigned;
                     if (next) {
@@ -625,7 +656,144 @@
                     DataManager.save();
                     UI.renderTotals();
                   });
+
+                  // Enable pointer-based paint selection
+                  cell.style.touchAction = 'none';
+                  const hoverOn = () => {
+                    row.classList.add('is-hover');
+                    cell.classList.add('col-hover');
+                    const siIdx = parseInt(cell.dataset.slotIndex || '0', 10);
+                    const lg = leftGutter?.children?.[siIdx + 2];
+                    const rg = rightGutter?.children?.[siIdx + 2];
+                    if (lg) lg.classList.add('is-hover');
+                    if (rg) rg.classList.add('is-hover');
+                    // Highlight matching legend chip for this column
+                    const ci = parseInt(cell.dataset.colIndex || '0', 10);
+                    const chip = legendChips[ci];
+                    if (chip) chip.classList.add('is-hover');
+                  };
+                  const hoverOff = () => {
+                    row.classList.remove('is-hover');
+                    // Remove col-hover from all cells in this column within this day block
+                    // Simpler: just remove from this cell; others will handle their own
+                    cell.classList.remove('col-hover');
+                    const siIdx = parseInt(cell.dataset.slotIndex || '0', 10);
+                    const lg = leftGutter?.children?.[siIdx + 2];
+                    const rg = rightGutter?.children?.[siIdx + 2];
+                    if (lg) lg.classList.remove('is-hover');
+                    if (rg) rg.classList.remove('is-hover');
+                    const ci = parseInt(cell.dataset.colIndex || '0', 10);
+                    const chip = legendChips[ci];
+                    if (chip) chip.classList.remove('is-hover');
+                  };
+                  cell.addEventListener('mouseenter', hoverOn);
+                  cell.addEventListener('mouseleave', hoverOff);
+                  cell.addEventListener('focus', hoverOn);
+                  cell.addEventListener('blur', hoverOff);
+                  cell.addEventListener('pointerdown', (ev) => {
+                    if (!cell.dataset.studentId) return;
+                    const startAssigned = !!DataManager.state.schedule[k];
+                    const forceErase = !!ev.altKey;
+                    painting.active = true;
+                    painting.mode = forceErase ? 'erase' : (startAssigned ? 'erase' : 'assign');
+                    painting.pointerId = ev.pointerId;
+                    painting.visited.clear();
+                    painting.lockStudentId = cell.dataset.studentId;
+                    try { cell.setPointerCapture(ev.pointerId); } catch (err) {}
+                    root.style.userSelect = 'none';
+                    // Suppress the synthetic click that follows pointerup
+                    cell.dataset.skipNextClick = '1';
+
+                    const applyToCell = (target) => {
+                      if (!target) return;
+                      const sid = target.dataset.studentId;
+                      if (!sid) return;
+                      // Enforce column lock: only apply to the starting student's column
+                      if (painting.lockStudentId && String(sid) !== String(painting.lockStudentId)) return;
+                      const ddi = parseInt(target.dataset.dayIndex || '0', 10);
+                      const ssi = parseInt(target.dataset.slotIndex || '0', 10);
+                      const key = makeKey(ddi, ssi, sid);
+                      if (painting.visited.has(key)) return;
+                      painting.visited.add(key);
+                      const studentsNow = (DataManager.state?.students) || [];
+                      const stu = studentsNow.find(s => String(s.id) === String(sid));
+                      const colorIndex = stu?.colorIndex ?? 0;
+                      const isAssigned = !!DataManager.state.schedule[key];
+                      if (painting.mode === 'assign' && !isAssigned) {
+                        DataManager.state.schedule[key] = true;
+                        target.classList.add(`swatch-${colorIndex}`);
+                        target.setAttribute('aria-pressed', 'true');
+                      } else if (painting.mode === 'erase' && isAssigned) {
+                        delete DataManager.state.schedule[key];
+                        target.classList.remove(`swatch-${colorIndex}`);
+                        target.setAttribute('aria-pressed', 'false');
+                      }
+                    };
+
+                    // Apply to origin cell immediately
+                    applyToCell(cell);
+
+                    const onPointerMove = (moveEv) => {
+                      if (!painting.active || moveEv.pointerId !== painting.pointerId) return;
+                      const el = document.elementFromPoint(moveEv.clientX, moveEv.clientY);
+                      const t = el && el.closest ? el.closest('.slot-cell') : null;
+                      if (t) applyToCell(t);
+                    };
+                    const onPointerEnd = (endEv) => {
+                      if (endEv.pointerId !== painting.pointerId) return;
+                      painting.active = false;
+                      try { cell.releasePointerCapture(endEv.pointerId); } catch (err) {}
+                      root.style.userSelect = '';
+                      window.removeEventListener('pointermove', onPointerMove, true);
+                      window.removeEventListener('pointerup', onPointerEnd, true);
+                      window.removeEventListener('pointercancel', onPointerEnd, true);
+                      painting.lockStudentId = null;
+                      DataManager.save();
+                      UI.renderTotals();
+                    };
+                    window.addEventListener('pointermove', onPointerMove, true);
+                    window.addEventListener('pointerup', onPointerEnd, true);
+                    window.addEventListener('pointercancel', onPointerEnd, true);
+                  });
                 }
+                // Keyboard navigation and activation
+                cell.addEventListener('keydown', (e) => {
+                  const key = e.key;
+                  if (key === ' ' || key === 'Spacebar' || key === 'Enter') {
+                    e.preventDefault();
+                    // Trigger click/toggle if a student is present
+                    if (cell.dataset.studentId) cell.click();
+                    return;
+                  }
+                  let dayIndex = parseInt(cell.dataset.dayIndex || '0', 10);
+                  let slotIndex = parseInt(cell.dataset.slotIndex || '0', 10);
+                  let colIndex = parseInt(cell.dataset.colIndex || '0', 10);
+                  const maxDay = 4; // Monday..Friday
+                  const maxRow = 15; // 16 slots
+                  const columnsNow = Math.max(1, (DataManager.state?.students?.length || 0));
+                  let handled = true;
+                  switch (key) {
+                    case 'ArrowRight': colIndex = Math.min(columnsNow - 1, colIndex + 1); break;
+                    case 'ArrowLeft': colIndex = Math.max(0, colIndex - 1); break;
+                    case 'ArrowDown': slotIndex = Math.min(maxRow, slotIndex + 1); break;
+                    case 'ArrowUp': slotIndex = Math.max(0, slotIndex - 1); break;
+                    case 'Home': colIndex = 0; break;
+                    case 'End': colIndex = columnsNow - 1; break;
+                    case 'PageDown': dayIndex = Math.min(maxDay, dayIndex + 1); break;
+                    case 'PageUp': dayIndex = Math.max(0, dayIndex - 1); break;
+                    default: handled = false;
+                  }
+                  if (!handled) return;
+                  e.preventDefault();
+                  const selector = `#weekGrid .day-block:nth-child(${dayIndex + 1}) .schedule-rows .slot-row:nth-child(${slotIndex + 1}) .slot-cell:nth-child(${colIndex + 1})`;
+                  const target = document.querySelector(selector);
+                  if (target) {
+                    const current = document.querySelector('#weekGrid .slot-cell[tabindex="0"]');
+                    if (current && current !== target) { current.tabIndex = -1; }
+                    target.tabIndex = 0;
+                    target.focus();
+                  }
+                });
                 row.appendChild(cell);
               }
               rows.appendChild(row);
@@ -664,30 +832,182 @@
       };
 
       window.exportToPDF = async function exportToPDF() {
-        // Placeholder export: capture week grid area and dump into a 2-page PDF shell
         try {
           const { jsPDF } = window.jspdf || {};
           if (!jsPDF || typeof html2canvas === 'undefined') {
             alert('PDF libraries not loaded yet.');
             return;
           }
-          const grid = document.getElementById('weekGrid');
-          const canvas = await html2canvas(grid, { scale: 2, windowWidth: grid.scrollWidth, windowHeight: grid.scrollHeight });
-          const imgData = canvas.toDataURL('image/png');
+
+          const margin = 24; // pt
           const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
           const pageWidth = doc.internal.pageSize.getWidth();
           const pageHeight = doc.internal.pageSize.getHeight();
-          // Fit image within page with small margins
-          const margin = 24;
+
+          // Page 1: capture schedule grid
+          const grid = document.getElementById('weekGrid');
+          let canvas;
+          try {
+            canvas = await html2canvas(grid, {
+              scale: 2,
+              windowWidth: grid.scrollWidth,
+              windowHeight: grid.scrollHeight
+            });
+          } catch (e1) {
+            // Fallback scale for memory-constrained environments
+            canvas = await html2canvas(grid, {
+              scale: 1.5,
+              windowWidth: grid.scrollWidth,
+              windowHeight: grid.scrollHeight
+            });
+          }
+          const imgData = canvas.toDataURL('image/png');
           const availableW = pageWidth - margin * 2;
           const availableH = pageHeight - margin * 2;
           const ratio = Math.min(availableW / canvas.width, availableH / canvas.height);
           const targetW = canvas.width * ratio;
           const targetH = canvas.height * ratio;
-          doc.addImage(imgData, 'PNG', (pageWidth - targetW) / 2, (pageHeight - targetH) / 2, targetW, targetH);
-          // Page 2 placeholder
+          const targetX = (pageWidth - targetW) / 2;
+          const targetY = (pageHeight - targetH) / 2;
+
+          // Optional header on page 1
+          const title = (window.__DataManager?.state?.settings?.headerTitle) || 'STUDENT WORKER SCHEDULE | 2024–2025';
+          const dateStr = new Date().toLocaleDateString();
+          doc.setFontSize(12);
+          doc.text(title, margin, 20);
+          doc.text(dateStr, pageWidth / 2, 20, { align: 'center' });
+
+          doc.addImage(imgData, 'PNG', targetX, targetY, targetW, targetH);
+
+          // Page 2: totals via AutoTable
           doc.addPage('letter', 'landscape');
-          doc.text('Totals page will appear here after implementation.', margin, margin + 12);
+
+          // Build totals data from DataManager.state
+          const students = (window.__DataManager?.state?.students) || [];
+          const schedule = (window.__DataManager?.state?.schedule) || {};
+          const makeKey = (di, si, sid) => `${di}|${si}|${sid}`;
+
+          const head = ['Student','Mon','Tue','Wed','Thu','Fri','Total'];
+          const body = [];
+          // Per-student rows
+          for (let s of students) {
+            let row = [];
+            row.push(`${s.name}${s.role ? ' ' + s.role : ''}`.trim());
+            let weekly = 0;
+            for (let di = 0; di < 5; di++) {
+              let dayTotal = 0;
+              for (let si = 0; si < 16; si++) {
+                if (schedule[makeKey(di, si, s.id)]) dayTotal += 0.5;
+              }
+              weekly += dayTotal;
+              row.push(dayTotal.toFixed(2));
+            }
+            row.push(weekly.toFixed(2));
+            body.push(row);
+          }
+          // Daily totals row
+          let totalsRow = ['DAILY TOTALS'];
+          let grand = 0;
+          for (let di = 0; di < 5; di++) {
+            let daySum = 0;
+            for (let s of students) {
+              for (let si = 0; si < 16; si++) {
+                if (schedule[makeKey(di, si, s.id)]) daySum += 0.5;
+              }
+            }
+            grand += daySum;
+            totalsRow.push(daySum.toFixed(2));
+          }
+          totalsRow.push(grand.toFixed(2));
+
+          // Optional parity check against UI totals table
+          try {
+            const tbodyEl = document.querySelector('#totalsTable tbody');
+            if (tbodyEl) {
+              const rows = Array.from(tbodyEl.querySelectorAll('tr'));
+              const domTotalsRow = rows.find(r => (r.querySelector('td')?.textContent || '').trim().toUpperCase() === 'DAILY TOTALS');
+              const domStudentRows = rows.filter(r => r !== domTotalsRow);
+              // Build map: name -> [Mon..Fri, Total]
+              const domMap = new Map();
+              domStudentRows.forEach(r => {
+                const tds = Array.from(r.querySelectorAll('td'));
+                if (tds.length === 7) {
+                  const name = (tds[0].textContent || '').trim();
+                  const vals = tds.slice(1).map(td => (td.textContent || '').trim());
+                  domMap.set(name, vals);
+                }
+              });
+              let mismatchCount = 0;
+              // Compare per-student rows
+              body.forEach(row => {
+                const name = row[0];
+                const vals = row.slice(1);
+                const domVals = domMap.get(name);
+                if (!domVals) { mismatchCount++; return; }
+                for (let i = 0; i < vals.length; i++) {
+                  if (String(vals[i]) !== String(domVals[i])) { mismatchCount++; break; }
+                }
+              });
+              // Compare totals row
+              if (domTotalsRow) {
+                const tds = Array.from(domTotalsRow.querySelectorAll('td'));
+                const domTotalsVals = tds.slice(1).map(td => (td.textContent || '').trim());
+                const pdfTotalsVals = totalsRow.slice(1);
+                for (let i = 0; i < pdfTotalsVals.length; i++) {
+                  if (String(pdfTotalsVals[i]) !== String(domTotalsVals[i])) { mismatchCount++; break; }
+                }
+              }
+              if (mismatchCount > 0) {
+                console.warn('PDF/UI totals parity check: mismatches detected =', mismatchCount);
+              }
+            }
+          } catch (parityErr) {
+            console.warn('PDF/UI totals parity check skipped:', parityErr);
+          }
+
+          // Render table using AutoTable
+          if (typeof doc.autoTable !== 'function') {
+            alert('AutoTable plugin not available.');
+            doc.save('student_schedule_preview.pdf');
+            return;
+          }
+
+          doc.autoTable({
+            head: [head],
+            body,
+            theme: 'grid',
+            styles: { fontSize: 10, cellPadding: 4 },
+            headStyles: { fillColor: [234,227,217], textColor: 0 },
+            columnStyles: {
+              0: { halign: 'left', cellWidth: 160 },
+              1: { halign: 'right' },
+              2: { halign: 'right' },
+              3: { halign: 'right' },
+              4: { halign: 'right' },
+              5: { halign: 'right' },
+              6: { halign: 'right' }
+            },
+            margin: { top: 36, right: margin, bottom: margin, left: margin },
+            foot: [totalsRow],
+            footStyles: { fontStyle: 'bold' },
+            showHead: 'everyPage',
+            showFoot: 'lastPage',
+            pageBreak: 'auto',
+            didDrawPage: (data) => {
+              // Header and footer for table pages
+              doc.setFontSize(12);
+              doc.text(title, data.settings.margin.left, 20);
+              doc.text(dateStr, pageWidth / 2, 20, { align: 'center' });
+              const pageStr = 'Page ' + (data.pageNumber || 1);
+              doc.text(pageStr, pageWidth - data.settings.margin.right, pageHeight - 12, { align: 'right' });
+            }
+          });
+
+          // Footer page number for page 1 as well
+          doc.setPage(1);
+          doc.setFontSize(12);
+          doc.text('Page 1', pageWidth - margin, pageHeight - 12, { align: 'right' });
+
           doc.save('student_schedule_preview.pdf');
         } catch (err) {
           console.error(err);

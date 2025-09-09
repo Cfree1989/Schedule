@@ -23,19 +23,12 @@ Build a portable, single-file Student Worker Schedule app that mirrors the provi
 4) PDF export (2-page, high-res) + accessibility/keyboard nav
 5) Cross-browser QA and polish
 
-## High-level Task Breakdown (Implementation Outline)
-1. Scaffold new single-file app `student-schedule-app.html` (HTML/CSS/JS inline). Header, grid container, totals table, modal overlay, footer badges. Placeholders for John/Jane Doe.
-2. Implement `DataManager` with schema (metadata, students, schedule, settings), reactive updates, autosave, and storage strategy: embedded JSON → localStorage → defaults. Add migration hook.
-3. Implement Earth-tone theme CSS (variables), responsive grid, and accessible color contrast.
-4. Implement `ScheduleGrid` rendering Mon–Fri and 8:30–16:30 at 30-min intervals. Color-coded assignments, click/keyboard toggle, drag or quick assign.
-5. Implement `StudentManager` (modal form) to add/edit students, generate initials/code, assign deterministic earth-tone color.
-6. Compute and render Hours Summary: daily totals per student and weekly totals; daily totals row.
-7. Implement `FileManager` single-file export/import: clone current HTML, embed JSON in `<script id="embedded-data" type="application/json">` and version metadata; import merges/replaces with validation.
-8. Implement PDF export using html2canvas + jsPDF: Page 1 landscape schedule grid only; Page 2 per-student totals. High resolution (scaled canvas). Expose via header button and Alt+P (and overflow menu).
-9. Add keyboard navigation (grid arrows, Enter/Space toggle), ARIA roles/labels; focus management.
-10. Add MiniTest harness to validate core modules and file ops (dev only), plus a simple in-app test runner panel.
-11. Cross-browser checks (Chrome/Edge), fix layout differences;
-12. Embed version metadata and lightweight usage docs within the file.
+## High‑level Task Breakdown — Remaining
+- MiniTest harness: validate core modules and file ops; simple in‑app runner.
+- PDF export pagination polish: anchor DAILY TOTALS as table footer.
+- Totals parity validation: compare PDF totals vs UI; log mismatches.
+- Student management: add edit/remove flows; update codes; purge assignments on removal.
+- Chrome/Edge QA and docs/version metadata.
 
 ## Acceptance Criteria
 - Single HTML file opens with embedded data (if present) and persists updates between sessions and machines
@@ -53,29 +46,128 @@ Build a portable, single-file Student Worker Schedule app that mirrors the provi
 - Accessibility complexity → prioritize focus order and keyboard nav for grid; defer advanced ARIA to minor update if needed
 - Time complexity of totals calc → cache per-day per-student totals and recompute incrementally on change
 
-## Project Status Board (initial)
-- Scaffold single-file app shell — Completed
-- DataManager with storage bootstrap — In Progress
-- Earth-tone theme + layout — Pending
-- ScheduleGrid core rendering — Pending
-- StudentManager modal — Pending
-- Hours Summary table — Pending
-- Single-file export/import with embedded JSON — Pending
-- PDF export (2 pages, button + Alt+P) — Pending
-- A11y + keyboard nav — Pending
+## Planner — Paint Selection Plan (v1)
+- Interaction model:
+  - Primary: Mouse/touch drag to assign across contiguous cells. Action is determined by the first cell’s state (if assigned → erase mode; if unassigned → assign mode).
+  - Modifier: Hold Alt to force erase while dragging regardless of first cell state.
+  - Hover feedback: During drag, apply a temporary highlight class to show affected cells.
+- Event handling (Pointer Events):
+  - Use `pointerdown` on `schedule-cell` to start painting; call `setPointerCapture(evt.pointerId)` on the origin cell.
+  - On `pointermove`, if painting is active, compute entered cell via `evt.target.closest('.schedule-cell')` and apply action if not already processed.
+  - On `pointerup`/`pointercancel`, release capture and finalize.
+  - Maintain a `visitedCellKeys` Set for the current gesture to avoid redundant work.
+- Data updates and performance:
+  - Debounce autosave to 300–500ms after last mutation during painting.
+  - Batch DOM/class updates via requestAnimationFrame to avoid layout thrash.
+  - Write through to `schedule` state per cell; totals recompute incrementally per affected student/day.
+- Edge cases:
+  - Leaving the grid while dragging: captured pointer preserves events; still finalize on `pointerup`.
+  - Scrolling: tolerate vertical scroll; do not start a text selection (`user-select: none` on grid while painting).
+  - Multi-touch: ignore additional pointers; only track the first active pointerId.
+  - Student removal mid-gesture: guard by resolving `personCode` at start and skip if missing on move.
+- Accessibility:
+  - Keep existing keyboard toggle behavior unchanged. Painting is an enhancement for mouse/touch users; keyboard users still toggle per cell.
+  - Announce large-range changes via an ARIA live region summary after gesture ends (e.g., "Assigned 6 slots to Jane on Tuesday").
+- Tasks:
+  1) Add painting state machine to grid controller (idle → painting(assign|erase) → idle).
+  2) Implement pointer event handlers and pointer capture on `.schedule-cell`.
+  3) Track `visitedCellKeys` per gesture; apply assign/erase consistently.
+  4) Debounce persistence and incremental totals recompute.
+  5) Add `user-select: none` during painting and temporary hover class.
+  6) Add optional Alt modifier to force erase.
+  7) QA across Chrome/Edge; verify touch on Edge/Windows.
+- Acceptance criteria:
+  - Dragging across cells assigns or erases contiguous ranges smoothly without lag.
+  - Action is consistent based on the first cell or Alt override.
+  - No text selection occurs while painting; autosave is debounced; totals update correctly.
+  - Works in Chrome/Edge with mouse and touch; keyboard behavior unchanged.
+
+## Executor — Next Actions (PDF Page 2)
+1. Build table data from state
+   - Derive `head = [['Student','Mon','Tue','Wed','Thu','Fri','Total']]`.
+   - For each student, sum assigned slots per day (0.5h each) → two-decimal strings; compute row total.
+   - Compute trailing row: `['DAILY TOTALS', monSum, ..., friSum, grand]`.
+2. Generate Page 2 and render table
+   - After Page 1 image, call `doc.addPage('letter','landscape')` (or `doc.addPage()` if already landscape).
+   - Invoke AutoTable with configured `theme`, `styles`, `columnStyles`, and margins from the plan.
+3. Add header/footer via hooks
+   - Use `didDrawPage` to draw title (left), date (center), and `Page X` (right).
+4. Wire into existing `exportToPDF`
+   - Replace the placeholder Page 2 text with the AutoTable call; keep error handling.
+5. Validate totals
+   - Cross-check a few interactive toggles vs. UI totals; ensure PDF values match UI `renderTotals()`.
+6. Performance fallback
+   - If Page 1 html2canvas capture throws, retry with `scale: 1.5` and continue with Page 2.
+
+## Planner — Next Steps (Post-PDF v1)
+Priority order:
+1) PDF polish — anchor daily totals as table footer
+   - Move the "DAILY TOTALS" row into AutoTable `foot`.
+   - Set `showFoot: 'lastPage'` (or `everyPage` if repetition across pages is preferred) per AutoTable docs.
+   - Keep `didDrawPage` for title/date/page numbers.
+   - Success: Footer row is pinned to bottom on the last page without squeezing body rows; header repeats on page breaks.
+2) Totals parity validation
+   - Add a quick parity check in `exportToPDF` that recomputes PDF numbers and compares to UI `renderTotals()` values; log mismatches.
+   - Success: 0 mismatches for a representative set of toggles and students.
+3) Accessibility & keyboard navigation
+   - Roles: `role="grid"` on the week grid, `role="row"` on slot rows, `role="gridcell"` on cells; keep `aria-pressed` true/false.
+   - Focus: roving tabindex (only one `tabindex="0"` cell at a time; others `-1`), visible focus outline.
+   - Keys: Arrow keys move focus (Up/Down/Left/Right); Space/Enter toggles the focused cell; Home/End jump to row ends; PageUp/PageDown move days.
+   - Announcements: `aria-label` on cells like "Monday 9:00–9:30 • Jane Doe"; header has live region title.
+   - Success: Navigate cells by keyboard alone; toggle assignments; screen readers announce context.
+4) Student management (edit/remove)
+   - Add edit/remove flow to the current modal or a simple inline editor.
+   - Success: Rename updates initials/code and schedule keys; remove purges assignments.
+5) Cross-browser QA and docs
+   - Verify Chrome/Edge; note any rendering differences; finalize README section embedded in file.
+   - Success: No layout regressions; export works identically.
+
+6) Paint selection (click-drag time assignment)
+   - Mouse-down to start selection; drag over cells to assign; release to commit. Hold a modifier (e.g., Alt) to erase while dragging.
+   - Success: Dragging across cells assigns/clears contiguous ranges smoothly without lag or accidental selections.
+   - Impl notes: Use pointer events; on first cell determine action (assign vs erase) from initial state; during drag, apply that action to entered cells; debounce saves; add `user-select: none` while painting.
+
+## Project Status Board
+### Active
 - MiniTest harness — Pending
 - Chrome/Edge QA — Pending
-- Docs + version metadata — Pending
+- Docs + version metadata — In Progress
+- PDF export — Pagination checks pending
+
+### Completed
+- Scaffold single-file app shell — Completed
+- DataManager with storage bootstrap — Completed (v1 minimal)
+- Earth-tone theme + layout — Completed
+- ScheduleGrid core rendering — Completed
+- StudentManager modal — Completed (add-only; edit/remove pending)
+- Hours Summary table — Completed
+- Single-file export/import with embedded JSON — Completed
+- PDF export (2 pages, button + Alt+P) — Completed (v1); footer anchored
+- A11y + keyboard nav — Completed (baseline implemented)
+- Paint selection (column-locked) — Completed
 
 ## Executor's Feedback or Assistance Requests
-- None at this time. Next up: flesh out ScheduleGrid interactions and totals.
+- No current blockers or assistance requests.
 
 ## Lessons
-- Context7: Using `/parallax/jspdf`, `/niklasvh/html2canvas`, and `/simonbengtsson/jspdf-autotable` CDN UMD builds aligns with our two-page PDF export goal and avoids bundling complexity.
+- **PDF Export**: CDN UMD builds (jsPDF, html2canvas, jsPDF-AutoTable) avoid bundling complexity while enabling two-page export.
+- **Accessibility**: Roving tabindex pattern with programmatic focus via arrows provides clean keyboard navigation without excessive tab stops.
 
 ## Decision History
 - PDF control revised: include a visible header button and Alt+P (overflow menu also)
 - Embedded JSON is the primary data source; localStorage is a fallback
+
+## Completed Features Archive
+- Single-file app shell — Implemented header, grid container, totals table, modal, and footer badges with Earth-tone theme and accessible contrast.
+- DataManager — Schema with metadata, students, schedule, settings; autosave and storage strategy (embedded JSON → localStorage → defaults); migration hook stubbed.
+- Earth-tone theme & layout — Responsive grid, sticky time gutters, accessible color palette, close adherence to screenshot layout.
+- ScheduleGrid core — Mon–Fri, 8:30–16:30 at 30-minute intervals; color-coded assignments; click/keyboard toggle; dynamic columns per number of students.
+- StudentManager (add-only) — Modal add flow; deterministic initials/code and color assignment; persistence integrated; edit/remove deferred.
+- Hours Summary table — Per-student daily and weekly totals; draggable rows; trailing DAILY TOTALS across all students.
+- Single-file export/import — Export creates self-contained HTML with embedded JSON and version metadata; import validates and merges/replaces state.
+- PDF export v1 — Two pages (Page 1 landscape grid, Page 2 per-student totals); header button and Alt+P; footer anchored; pagination checks pending.
+- Accessibility baseline — Roving tabindex and ARIA roles (`grid`, `row`, `gridcell`); keyboard navigation (arrows, Home/End, PageUp/PageDown, Space/Enter).
+- Paint selection — Drag to assign/erase contiguous cells; pointer events with capture and elementFromPoint hit-test; Alt forces erase; column locked to starting student to prevent accidental cross-student painting; save at gesture end.
 
 ## Quick Reference (for Executor)
 - Work week/time: Mon–Fri, 8:30–16:30, 30-min slots
@@ -83,49 +175,8 @@ Build a portable, single-file Student Worker Schedule app that mirrors the provi
 - PDF: Page 1 = schedule grid landscape; Page 2 = per-student totals
 - Access PDF: Alt+P or header button; overflow menu option available
 
-## Planner Analysis — Template Structure (Student Worker Schedule Template.html)
-- **Header**: `STUDENT WORKER SCHEDULE | 2024-2025` top banner.
-- **Buttons (Admin Controls)**:
-  - **Quick Save**: `saveSchedule()` → `saveHybridSchedule()` + persist `studentWorkerPeople`.
-  - **Clear Times**: `clearTimes()` resets all assignments (keeps students).
-  - **PDF**: `exportToPDF()` uses html2canvas + jsPDF to generate 2 pages: Page 1 (header + schedule grid), Page 2 (header + totals). Scale 3.0, Letter landscape.
-  - **Download**: `exportSchedule()` creates a self-contained HTML, embedding current `schedule` (into `sampleSchedule`) and `people` inline.
-  - **Add Student**: opens modal → `addStudentFromModal()` generates initials, assigns earth-tone color, persists list, re-renders.
-  - Hidden import input: `#scheduleFileInput` with `handleScheduleFileSelect(...)` parses embedded `sampleSchedule` and `people` from an HTML file. Helper `importSchedule()` triggers the chooser (no visible button currently).
-
-- **Schedule Grid and Time Slot Area**:
-  - Layout is a 3-column CSS grid: left time gutter, central week grid, right time gutter.
-  - **Time gutters (left and right)**: 12-hour labels; top two empty rows to align with day header and legend; then 16 rows from 8:30–9:00 through 16:00–16:30. Gutters are sticky to edges.
-  - **Week grid**: 5 `day-block`s (Monday–Friday). Each `day-block` has:
-    - `day-header` (day name),
-    - `legend-row` (top row of student initials per day),
-    - 16 `schedule-row`s (one per 30-min slot).
-  - Column count per day is dynamic: `grid-template-columns: repeat(numStudents, 1fr)`.
-  - **Cells**: Each `schedule-cell` has `data-day`, `data-slot`, `data-person`. Click toggles assignment; applies the student color class (earth-tone). Key format: `${day}-${slot}-${personCode}`.
-
-- **Legend (Initials Row)**:
-  - One legend cell per student at the top of each day (`legend-row`). Displays `person.code` (initials); background via per-student color class.
-
-- **Totals Table (separate, below grid)**:
-  - Section `totals-section` → table `#totalsTable` built by `renderTotalsTable()`.
-  - For each student: Monday–Friday daily totals computed by counting scheduled slots × 0.5h; weekly total is the row sum.
-  - Rows are draggable to reorder students; name cell opens `editStudent(...)` (rename, role change, or removal). Grand-total row labeled `DAILY TOTALS` shows per-day sums across all students and a weekly grand total.
-
-- **Hour Calculation Details**:
-  - `timeSlots` = 16 half-hour ranges; each scheduled slot contributes 0.5h.
-  - `schedule` is a sparse map of `${day}-${slot}-${personCode}` → `true`.
-  - Editing student code updates all schedule keys to maintain assignments.
-
-- **Persistence & State (Hybrid)**:
-  - Autosave via `MutationObserver` on class attribute changes within `#weekGrid` (debounced 500ms).
-  - Hybrid structure `hybridData` keeps `trackedState` (schedule), `domVerification` snapshot, and `metadata` (checksum, timestamp).
-  - Storage keys: `labSchedule` (hybrid), `studentWorkerSchedule` (legacy schedule), `studentWorkerPeople` (students).
-  - Load order: embedded `sampleSchedule`/`people` (if present) → `labSchedule`/legacy → defaults.
-
-- **Libraries (Context7 references)**:
-  - jsPDF: `/parallax/jspdf` (CDN v2.5.1 UMD) — PDF generation.
-  - jsPDF-AutoTable: `/simonbengtsson/jspdf-autotable` (CDN 3.5.29) — loaded, not currently used in `exportToPDF()`.
-  - html2canvas: `/niklasvh/html2canvas` (CDN v1.4.1) — DOM rasterization for PDF images.
-
-- **Accessibility Note**:
-  - No explicit ARIA roles/keyboard navigation on the grid yet; planned under A11y milestone.
+## Architecture Reference
+- **Layout**: 3-column CSS grid (time gutters + week grid); Mon–Fri, 8:30–16:30, 30-min slots
+- **Data Model**: Sparse map `${day}-${slot}-${personCode}` → `true`; 0.5h per slot
+- **Storage**: Embedded JSON → localStorage → defaults; autosave via MutationObserver
+- **Libraries**: jsPDF, html2canvas, jsPDF-AutoTable via CDN UMD
