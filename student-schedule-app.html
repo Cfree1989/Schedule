@@ -101,7 +101,6 @@
     .time-gutter, .time-gutter-right {
       background: var(--surface);
       border: var(--grid-line) solid var(--border);
-      border-bottom: 0; /* remove bottom border, will add synthetic one */
       border-radius: var(--corner-r);
       padding: 0; /* Remove padding to align with day blocks */
       position: sticky;
@@ -111,19 +110,12 @@
       max-height: none;
       overflow: visible;
       display: grid;
-      grid-template-rows: repeat(18, var(--slot-h)); /* 2 spacers + 16 time slots */
+      grid-template-rows: repeat(16, var(--slot-h)); /* 16 time slots only */
       grid-auto-rows: var(--slot-h);
       align-content: start;
       gap: 0;
       margin-top: 0;
       position: relative;
-    }
-
-    /* Add bottom border to last time row instead of synthetic border */
-    .time-gutter .time:last-child, .time-gutter-right .time:last-child {
-      border-bottom: var(--grid-line) solid var(--border);
-      border-bottom-left-radius: var(--corner-r);
-      border-bottom-right-radius: var(--corner-r);
     }
 
     .time-gutter .time, .time-gutter-right .time {
@@ -137,11 +129,9 @@
 
     /* Draw dividers per item so we can skip the last one and avoid double bottom border */
     .time-gutter, .time-gutter-right { background-image: none; }
-    /* Match day grid: two header/legend spacers, then 16 time rows */
+    /* All time rows have consistent borders */
     .time-gutter .time, .time-gutter-right .time { box-sizing: border-box; border-top: var(--grid-line) solid var(--border); border-bottom: 0; }
-    /* Last row keeps full height since synthetic bottom stroke handles alignment */
-    .time-gutter .time:nth-child(1), .time-gutter .time:nth-child(2),
-    .time-gutter-right .time:nth-child(1), .time-gutter-right .time:nth-child(2) { border-top: 0; }
+    .time-gutter .time:first-child, .time-gutter-right .time:first-child { border-top: none; }
 
     .week-grid {
       background: var(--grid-bg);
@@ -178,6 +168,7 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      box-sizing: border-box;
     }
 
     .legend-row {
@@ -597,12 +588,6 @@
           const right = document.getElementById('rightGutter');
           left.innerHTML = '';
           right.innerHTML = '';
-          // Add two spacer rows (header + legend)
-          for (let i = 0; i < 2; i++) {
-            const a = document.createElement('div'); a.className = 'time'; a.textContent = '';
-            const b = document.createElement('div'); b.className = 'time'; b.textContent = '';
-            left.appendChild(a); right.appendChild(b);
-          }
           // 16 time rows matching slot rows
           SLOT_LABELS.forEach(lbl => {
             const a = document.createElement('div');
@@ -758,8 +743,8 @@
                     row.classList.add('is-hover');
                     cell.classList.add('col-hover');
                     const siIdx = parseInt(cell.dataset.slotIndex || '0', 10);
-                    const lg = leftGutter?.children?.[siIdx + 2];
-                    const rg = rightGutter?.children?.[siIdx + 2];
+                    const lg = leftGutter?.children?.[siIdx];
+                    const rg = rightGutter?.children?.[siIdx];
                     if (lg) lg.classList.add('is-hover');
                     if (rg) rg.classList.add('is-hover');
                     // Highlight matching legend chip for this column
@@ -773,8 +758,8 @@
                     // Simpler: just remove from this cell; others will handle their own
                     cell.classList.remove('col-hover');
                     const siIdx = parseInt(cell.dataset.slotIndex || '0', 10);
-                    const lg = leftGutter?.children?.[siIdx + 2];
-                    const rg = rightGutter?.children?.[siIdx + 2];
+                    const lg = leftGutter?.children?.[siIdx];
+                    const rg = rightGutter?.children?.[siIdx];
                     if (lg) lg.classList.remove('is-hover');
                     if (rg) rg.classList.remove('is-hover');
                     const ci = parseInt(cell.dataset.colIndex || '0', 10);

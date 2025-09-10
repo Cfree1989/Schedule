@@ -146,6 +146,13 @@ Priority order:
 - MiniTest harness — Completed (panel + shared totals helper + core tests; all green)
 
 ## Executor's Feedback or Assistance Requests
+- ✅ **OPTIMAL BOTTOM ALIGNMENT IMPLEMENTED**: Successfully implemented the optimal bottom alignment approach:
+  - Changed time gutters from 18 rows to 16 rows (removed 2 spacer rows)
+  - Updated CSS to remove spacer row handling (nth-child(1) and nth-child(2))
+  - Fixed hover logic to remove +2 offset for spacer rows
+  - Now 16 time rows align perfectly with 16 schedule rows at the bottom
+  - Day blocks maintain 18 rows (1 header + 1 legend + 16 schedule rows)
+  - Bottom alignment achieved via `align-items: end` on `.schedule-shell`
 - MiniTest panel is live; all current tests passing. Optional next: add a PDF/UI parity test and a quick keyboard nav sanity check, or proceed to Chrome/Edge QA.
 
 ## BFROS Analysis: Height/Gutter Spacing Issue
@@ -243,7 +250,48 @@ Priority order:
 
 **Result**: The bottom border of the time gutters now properly aligns with the content and looks clean, matching the day-block bottom borders.
 
+## Planner Plan: Optimal Bottom Alignment Approach
+
+**User Insight**: Why not have gutters with 16 rows and day blocks with 18 rows, but align them at the bottom so the actual time content lines up perfectly?
+
+**Optimal Structure**:
+- **Time Gutter**: 16 rows (just the time slots: 8:30-4:30)
+- **Day Block**: 18 rows (1 header + 1 legend + 16 schedule rows)
+- **Bottom Alignment**: The 16 time rows align with the 16 schedule rows
+- **Consistent Heights**: All cells use `var(--slot-h)` (28px) with `var(--grid-line)` (2px) borders
+
+**Implementation Plan**:
+
+1. **Time Gutter Structure**:
+   - Change from 18 rows to 16 rows
+   - Remove the 2 spacer rows from `renderGutters()`
+   - Use `grid-template-rows: repeat(16, var(--slot-h))`
+   - Update CSS selectors to remove spacer row handling
+
+2. **Day Block Structure**:
+   - Keep 18 rows: `grid-template-rows: var(--slot-h) var(--slot-h) repeat(16, var(--slot-h))`
+   - Header row (day name)
+   - Legend row (student chips)  
+   - 16 schedule rows (actual time slots)
+
+3. **Bottom Alignment**:
+   - Keep `.schedule-shell` with `align-items: end`
+   - This aligns the 16 time rows with the 16 schedule rows at the bottom
+   - Header and legend rows appear at the top of day blocks only
+
+4. **Border Consistency**:
+   - All cells use consistent `var(--slot-h)` height
+   - All borders use consistent `var(--grid-line)` thickness
+   - Bottom border on last time row matches day-block styling
+
+**Benefits**:
+- Perfect visual alignment of time labels with schedule grid rows
+- Clean separation: time content at bottom, headers/legends at top
+- Consistent cell heights and border thickness throughout
+- No complex CSS alignment tricks needed
+
 ## Lessons
+- **Gutter Cell Sizing**: A cell's visual height can be unexpectedly reduced if it has both top and bottom borders, even with `box-sizing: border-box`. A 28px tall cell with 2px top and 2px bottom borders will have 4px less internal space than a cell with only one of those borders, making it look shorter. The best practice is to have the container handle its own borders and let the internal items only manage the dividers between them (e.g., only `border-top`), ensuring uniform internal dimensions.
 - **PDF Export**: CDN UMD builds (jsPDF, html2canvas, jsPDF-AutoTable) avoid bundling complexity while enabling two-page export.
 - **Accessibility**: Roving tabindex pattern with programmatic focus via arrows provides clean keyboard navigation without excessive tab stops.
 
