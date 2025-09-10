@@ -24,6 +24,8 @@
       --legend-bg: #f2ebe0;
       --grid-bg: #fffdf8;
       --slot-h: 28px;
+      --corner-r: 10px;
+      --grid-line: 2px;
     }
 
     html, body {
@@ -91,22 +93,37 @@
       display: grid;
       grid-template-columns: minmax(60px, 80px) 1fr minmax(60px, 80px);
       gap: 8px;
-      align-items: start;
+      align-items: end; /* Align gutters and day blocks at the bottom */
+      max-height: calc(100dvh - 140px);
+      overflow: auto;
     }
 
     .time-gutter, .time-gutter-right {
       background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 0;
-      padding-top: 1px; /* align time rows with slot rows */
+      border: var(--grid-line) solid var(--border);
+      border-bottom: 0; /* remove bottom border, will add synthetic one */
+      border-radius: var(--corner-r);
+      padding: 0; /* Remove padding to align with day blocks */
       position: sticky;
-      top: 64px;
-      max-height: calc(100dvh - 140px);
-      overflow: auto;
+      left: 0;
+      right: 0;
+      top: auto;
+      max-height: none;
+      overflow: visible;
       display: grid;
-      grid-template-rows: repeat(18, var(--slot-h));
+      grid-template-rows: repeat(18, var(--slot-h)); /* 2 spacers + 16 time slots */
+      grid-auto-rows: var(--slot-h);
+      align-content: start;
       gap: 0;
+      margin-top: 0;
+      position: relative;
+    }
+
+    /* Add bottom border to last time row instead of synthetic border */
+    .time-gutter .time:last-child, .time-gutter-right .time:last-child {
+      border-bottom: var(--grid-line) solid var(--border);
+      border-bottom-left-radius: var(--corner-r);
+      border-bottom-right-radius: var(--corner-r);
     }
 
     .time-gutter .time, .time-gutter-right .time {
@@ -118,23 +135,31 @@
       height: var(--slot-h);
     }
 
+    /* Draw dividers per item so we can skip the last one and avoid double bottom border */
+    .time-gutter, .time-gutter-right { background-image: none; }
+    /* Match day grid: two header/legend spacers, then 16 time rows */
+    .time-gutter .time, .time-gutter-right .time { box-sizing: border-box; border-top: var(--grid-line) solid var(--border); border-bottom: 0; }
+    /* Last row keeps full height since synthetic bottom stroke handles alignment */
+    .time-gutter .time:nth-child(1), .time-gutter .time:nth-child(2),
+    .time-gutter-right .time:nth-child(1), .time-gutter-right .time:nth-child(2) { border-top: 0; }
+
     .week-grid {
       background: var(--grid-bg);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 0;
+      border-radius: var(--corner-r);
+      padding: 0; /* Remove padding to align with gutters */
       display: grid;
       grid-template-columns: repeat(5, 1fr);
-      gap: 8px;
-      overflow: auto;
-      max-height: calc(100dvh - 140px);
+      gap: 4px;
+      overflow: visible;
+      min-width: 0;
+      max-height: none;
     }
 
     .day-block {
       display: grid;
       grid-template-rows: var(--slot-h) var(--slot-h) auto;
-      border: 1px solid var(--border);
-      border-radius: 8px;
+      border: var(--grid-line) solid var(--border);
+      border-radius: var(--corner-r);
       overflow: hidden;
       background: var(--surface);
     }
@@ -143,11 +168,13 @@
       background: var(--day-header-bg);
       padding: 0 10px;
       font-weight: 600;
-      border-bottom: 1px solid var(--border);
+      border-bottom: var(--grid-line) solid var(--border);
       letter-spacing: 0.03em;
       height: var(--slot-h);
       display: flex;
       align-items: center;
+      justify-content: center;
+      text-align: center;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -156,10 +183,10 @@
     .legend-row {
       background: var(--legend-bg);
       padding: 0;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 0;
       display: grid;
       grid-auto-flow: column;
-      grid-auto-columns: minmax(28px, 1fr);
+      grid-auto-columns: minmax(20px, 1fr);
       gap: 0;
       height: var(--slot-h);
       align-items: center;
@@ -168,11 +195,11 @@
       background: var(--chip-bg);
       color: var(--text);
       font-weight: 600;
-      font-size: 12px;
+      font-size: 11px;
       border-radius: 6px;
-      padding: 6px 8px;
+      padding: 2px 4px;
       text-align: center;
-      border: 1px solid var(--border);
+      border: var(--grid-line) solid var(--border);
     }
     /* Align legend cell borders with slot cell borders (avoid double-left borders) */
     .legend-row .legend-chip { border-left: none; }
@@ -184,13 +211,23 @@
       grid-template-rows: repeat(16, var(--slot-h));
       gap: 0;
     }
-    .slot-row { display: grid; grid-auto-flow: column; gap: 0; align-items: stretch; }
-    .slot-cell { border: 1px solid var(--border); border-left: none; background: #fff; cursor: pointer; }
-    .slot-row .slot-cell:first-child { border-left: 1px solid var(--border); }
-    .slot-cell:focus { outline: 2px solid var(--focus); outline-offset: -2px; position: relative; z-index: 2; }
+    .slot-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(20px, 1fr); gap: 0; align-items: stretch; }
+    /* Single-line grid borders: draw only top and right borders per cell */
+    .slot-cell { border: 0; border-top: var(--grid-line) solid var(--border); border-right: var(--grid-line) solid var(--border); background: #fff; cursor: pointer; }
+    /* Avoid double-thick edges: no right border on last col, no bottom border on last row */
+    .slot-row .slot-cell:last-child { border-right: none; }
+    .schedule-rows .slot-row:last-child .slot-cell { border-bottom: none; }
+    /* First data row draws its own top border; legend has no bottom border now */
+    .schedule-rows .slot-row:first-child .slot-cell { border-top: var(--grid-line) solid var(--border); }
+    /* Use inset box-shadow for focus so it respects corner radii and avoids clipping */
+    .slot-cell:focus { outline: none; box-shadow: inset 0 0 0 2px var(--focus); position: relative; z-index: 2; }
     /* Hover triangulation: highlight current row and column */
     .slot-row.is-hover { background: rgba(0,0,0,0.035); }
-    .slot-cell.col-hover { outline: 2px solid var(--focus); outline-offset: -2px; position: relative; z-index: 2; }
+    /* Hover ring also uses inset shadow to respect rounded corners */
+    .slot-cell.col-hover { box-shadow: inset 0 0 0 2px var(--focus); position: relative; z-index: 2; }
+    /* Round the bottom corner cells to match day-block radius so inner borders don't bite into curves */
+    .schedule-rows .slot-row:last-child .slot-cell:first-child { border-bottom-left-radius: var(--corner-r); }
+    .schedule-rows .slot-row:last-child .slot-cell:last-child { border-bottom-right-radius: var(--corner-r); }
     .time.is-hover { background: rgba(0,0,0,0.06); font-weight: 600; }
     .legend-chip.is-hover { outline: 2px solid var(--focus); outline-offset: -2px; position: relative; z-index: 2; }
 
@@ -220,6 +257,12 @@
     }
     .badges { display: flex; gap: 8px; align-items: center; }
     .badge { background: var(--legend-bg); border: 1px solid var(--border); padding: 4px 8px; border-radius: 999px; }
+
+    /* Tests panel */
+    .tests-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+    .tests-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .tests-title { font-weight: 700; }
+    #testResults { background: #111; color: #e6e6e6; padding: 10px; border-radius: 8px; max-height: 240px; overflow: auto; }
 
     /* Modal */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: none; align-items: center; justify-content: center; z-index: 50; }
@@ -252,9 +295,8 @@
         <button class="icon-btn danger" id="btnClear" title="Clear all times">Clear Times</button>
         <button class="icon-btn primary" id="btnPDF" title="Export PDF (Alt+P)">PDF</button>
         <button class="icon-btn" id="btnDownload" title="Download single-file HTML">Download</button>
-        <button class="icon-btn" id="btnImport" title="Import from exported HTML">Import</button>
         <button class="icon-btn" id="btnAddStudent" title="Add a student">Add Student</button>
-        <input class="visually-hidden" type="file" id="fileImport" accept=".html,.htm" />
+        <button class="icon-btn" id="btnTests" title="Show MiniTest panel">Tests</button>
       </div>
     </header>
 
@@ -286,6 +328,16 @@
           </tbody>
         </table>
         <div id="totalsHelp" class="visually-hidden">Shows per-student daily and weekly hours.</div>
+      </section>
+
+      <section class="tests-panel" id="testsPanel" aria-label="MiniTest" style="display:none">
+        <div class="tests-header">
+          <div class="tests-title">MiniTest</div>
+          <div class="tests-actions">
+            <button class="btn" id="btnRunTests">Run Tests</button>
+          </div>
+        </div>
+        <pre id="testResults" aria-live="polite">(no results yet)</pre>
       </section>
     </main>
 
@@ -369,6 +421,30 @@
 
       const DataManager = {
         state: null,
+        // Compute totals for UI and PDF in one place (Context7-style shared helper)
+        computeTotals(state) {
+          const students = (state && state.students) || [];
+          const schedule = (state && state.schedule) || {};
+          const makeKey = (di, si, sid) => `${di}|${si}|${sid}`;
+          const perStudent = [];
+          const dailyTotals = [0,0,0,0,0];
+          let grand = 0;
+          for (let s of students) {
+            const row = { name: `${s.name}${s.role ? ' ' + s.role : ''}`.trim(), days: [0,0,0,0,0], total: 0 };
+            for (let di = 0; di < 5; di++) {
+              let day = 0;
+              for (let si = 0; si < 16; si++) {
+                if (schedule[makeKey(di, si, s.id)]) day += 0.5;
+              }
+              row.days[di] = day;
+              row.total += day;
+              dailyTotals[di] += day;
+            }
+            perStudent.push(row);
+            grand += row.total;
+          }
+          return { perStudent, dailyTotals, grand };
+        },
         getEmbedded() {
           const el = document.getElementById('embedded-data');
           if (!el) return null;
@@ -471,9 +547,26 @@
           document.getElementById('btnClear').addEventListener('click', window.clearTimes);
           document.getElementById('btnPDF').addEventListener('click', window.exportToPDF);
           document.getElementById('btnDownload').addEventListener('click', window.exportSchedule);
-          document.getElementById('btnImport').addEventListener('click', () => document.getElementById('fileImport').click());
-          document.getElementById('fileImport').addEventListener('change', window.handleScheduleFileSelect);
           document.getElementById('btnAddStudent').addEventListener('click', () => this.openStudentModal());
+          document.getElementById('btnTests').addEventListener('click', () => {
+            const p = document.getElementById('testsPanel');
+            const opening = p.style.display === 'none';
+            p.style.display = opening ? 'block' : 'none';
+            if (opening) {
+              const pre = document.getElementById('testResults');
+              const isEmpty = pre && pre.textContent && pre.textContent.trim() === '(no results yet)';
+              if (isEmpty && window.__Tests && typeof window.__Tests.runAll === 'function') {
+                setTimeout(() => window.__Tests.runAll(), 0);
+              }
+            }
+          });
+          document.getElementById('btnRunTests').addEventListener('click', () => {
+            if (window.__Tests && typeof window.__Tests.runAll === 'function') {
+              window.__Tests.runAll();
+            } else {
+              alert('Tests not loaded yet. Try again in a moment.');
+            }
+          });
 
           document.getElementById('studentCancel').addEventListener('click', () => this.closeStudentModal());
           document.getElementById('studentSave').addEventListener('click', window.addStudentFromModal);
@@ -504,19 +597,12 @@
           const right = document.getElementById('rightGutter');
           left.innerHTML = '';
           right.innerHTML = '';
-          // Two empty rows to align with day header and legend
-          const empty = () => { const d = document.createElement('div'); d.className = 'time'; d.textContent = ''; return d; };
-          const e1L = empty();
-          const e2L = empty();
-          const e1R = empty();
-          const e2R = empty();
-          // Add a 1px bottom border on the second empty cell to account for header+legend borders
-          e2L.style.borderBottom = '1px solid var(--border)';
-          e2R.style.borderBottom = '1px solid var(--border)';
-          left.appendChild(e1L);
-          left.appendChild(e2L);
-          right.appendChild(e1R);
-          right.appendChild(e2R);
+          // Add two spacer rows (header + legend)
+          for (let i = 0; i < 2; i++) {
+            const a = document.createElement('div'); a.className = 'time'; a.textContent = '';
+            const b = document.createElement('div'); b.className = 'time'; b.textContent = '';
+            left.appendChild(a); right.appendChild(b);
+          }
           // 16 time rows matching slot rows
           SLOT_LABELS.forEach(lbl => {
             const a = document.createElement('div');
@@ -533,29 +619,21 @@
         renderTotals() {
           const tbody = document.querySelector('#totalsTable tbody');
           if (!tbody) return;
-          const students = (DataManager.state && DataManager.state.students) || [];
-          const schedule = (DataManager.state && DataManager.state.schedule) || {};
-          const makeKey = (di, si, sid) => `${di}|${si}|${sid}`;
+          const { perStudent, dailyTotals, grand } = DataManager.computeTotals(DataManager.state);
           tbody.innerHTML = '';
           // Per-student rows
-          students.forEach((s) => {
+          perStudent.forEach((row) => {
             const tr = document.createElement('tr');
             const nameCell = document.createElement('td');
-            nameCell.textContent = `${s.name} ${s.role || ''}`.trim();
+            nameCell.textContent = row.name;
             tr.appendChild(nameCell);
-            let weekly = 0;
             for (let di = 0; di < 5; di++) {
-              let dayTotal = 0;
-              for (let si = 0; si < 16; si++) {
-                if (schedule[makeKey(di, si, s.id)]) dayTotal += 0.5;
-              }
-              weekly += dayTotal;
               const td = document.createElement('td');
-              td.textContent = dayTotal.toFixed(2);
+              td.textContent = row.days[di].toFixed(2);
               tr.appendChild(td);
             }
             const totalTd = document.createElement('td');
-            totalTd.textContent = weekly.toFixed(2);
+            totalTd.textContent = row.total.toFixed(2);
             tr.appendChild(totalTd);
             tbody.appendChild(tr);
           });
@@ -565,17 +643,9 @@
           const labelTd = document.createElement('td');
           labelTd.textContent = 'DAILY TOTALS';
           totalRow.appendChild(labelTd);
-          let grand = 0;
           for (let di = 0; di < 5; di++) {
-            let daySum = 0;
-            for (const s of students) {
-              for (let si = 0; si < 16; si++) {
-                if (schedule[makeKey(di, si, s.id)]) daySum += 0.5;
-              }
-            }
-            grand += daySum;
             const td = document.createElement('td');
-            td.textContent = daySum.toFixed(2);
+            td.textContent = dailyTotals[di].toFixed(2);
             totalRow.appendChild(td);
           }
           const grandTd = document.createElement('td');
@@ -624,8 +694,6 @@
             const legend = document.createElement('div');
             legend.className = 'legend-row';
             const columns = Math.max(1, students.length);
-            const gridColumns = `repeat(${columns}, 1fr)`;
-            legend.style.gridTemplateColumns = gridColumns;
             const legendChips = [];
             students.forEach((s, chipIdx) => {
               const chip = document.createElement('div');
@@ -643,7 +711,6 @@
             for (let si = 0; si < 16; si++) {
               const row = document.createElement('div');
               row.className = 'slot-row';
-              row.style.gridTemplateColumns = gridColumns;
               row.setAttribute('role', 'row');
               for (let c = 0; c < columns; c++) {
                 const cell = document.createElement('div');
@@ -716,7 +783,18 @@
                   };
                   cell.addEventListener('mouseenter', hoverOn);
                   cell.addEventListener('mouseleave', hoverOff);
-                  cell.addEventListener('focus', hoverOn);
+                  cell.addEventListener('focus', () => {
+                    // BFROS edge debug: log when focusing last row or first/last column
+                    const siIdx = parseInt(cell.dataset.slotIndex || '0', 10);
+                    const ciIdx = parseInt(cell.dataset.colIndex || '0', 10);
+                    const isBottom = siIdx === 15;
+                    const isLeft = ciIdx === 0;
+                    const isRight = ciIdx === (Math.max(1, (DataManager.state?.students?.length || 0)) - 1);
+                    if (isBottom || isLeft || isRight) {
+                      console.debug('[grid-edge-focus]', { day: di, slot: siIdx, col: ciIdx, isBottom, isLeft, isRight });
+                    }
+                    hoverOn();
+                  });
                   cell.addEventListener('blur', hoverOff);
                   cell.addEventListener('pointerdown', (ev) => {
                     if (!cell.dataset.studentId) return;
@@ -842,6 +920,7 @@
             block.appendChild(rows);
             root.appendChild(block);
           });
+
         },
         openStudentModal() {
           document.getElementById('studentName').value = '';
@@ -924,51 +1003,19 @@
           doc.addPage('letter', 'landscape');
 
           // Build totals data from DataManager.state
-          const students = (window.__DataManager?.state?.students) || [];
-          const schedule = (window.__DataManager?.state?.schedule) || {};
-          const makeKey = (di, si, sid) => `${di}|${si}|${sid}`;
-
           const head = ['Student','Mon','Tue','Wed','Thu','Fri','Total'];
-          const body = [];
-          // Per-student rows
-          for (let s of students) {
-            let row = [];
-            row.push(`${s.name}${s.role ? ' ' + s.role : ''}`.trim());
-            let weekly = 0;
-            for (let di = 0; di < 5; di++) {
-              let dayTotal = 0;
-              for (let si = 0; si < 16; si++) {
-                if (schedule[makeKey(di, si, s.id)]) dayTotal += 0.5;
-              }
-              weekly += dayTotal;
-              row.push(dayTotal.toFixed(2));
-            }
-            row.push(weekly.toFixed(2));
-            body.push(row);
-          }
-          // Daily totals row
-          let totalsRow = ['DAILY TOTALS'];
-          let grand = 0;
-          for (let di = 0; di < 5; di++) {
-            let daySum = 0;
-            for (let s of students) {
-              for (let si = 0; si < 16; si++) {
-                if (schedule[makeKey(di, si, s.id)]) daySum += 0.5;
-              }
-            }
-            grand += daySum;
-            totalsRow.push(daySum.toFixed(2));
-          }
-          totalsRow.push(grand.toFixed(2));
+          const { perStudent, dailyTotals, grand } = DataManager.computeTotals(window.__DataManager?.state);
+          const body = perStudent.map(r => [r.name, ...r.days.map(d=>d.toFixed(2)), r.total.toFixed(2)]);
+          const totalsRow = ['DAILY TOTALS', ...dailyTotals.map(d=>d.toFixed(2)), grand.toFixed(2)];
 
           // Optional parity check against UI totals table
           try {
             const tbodyEl = document.querySelector('#totalsTable tbody');
             if (tbodyEl) {
+              let mismatchCount = 0;
               const rows = Array.from(tbodyEl.querySelectorAll('tr'));
               const domTotalsRow = rows.find(r => (r.querySelector('td')?.textContent || '').trim().toUpperCase() === 'DAILY TOTALS');
               const domStudentRows = rows.filter(r => r !== domTotalsRow);
-              // Build map: name -> [Mon..Fri, Total]
               const domMap = new Map();
               domStudentRows.forEach(r => {
                 const tds = Array.from(r.querySelectorAll('td'));
@@ -978,8 +1025,7 @@
                   domMap.set(name, vals);
                 }
               });
-              let mismatchCount = 0;
-              // Compare per-student rows
+              // Compare per-student rows to UI
               body.forEach(row => {
                 const name = row[0];
                 const vals = row.slice(1);
@@ -989,7 +1035,7 @@
                   if (String(vals[i]) !== String(domVals[i])) { mismatchCount++; break; }
                 }
               });
-              // Compare totals row
+              // Compare totals row to UI
               if (domTotalsRow) {
                 const tds = Array.from(domTotalsRow.querySelectorAll('td'));
                 const domTotalsVals = tds.slice(1).map(td => (td.textContent || '').trim());
@@ -1081,32 +1127,119 @@
         URL.revokeObjectURL(a.href);
       };
 
-      window.handleScheduleFileSelect = function handleScheduleFileSelect(e) {
-        const file = e.target.files && e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = () => {
-          try {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(reader.result, 'text/html');
-            const embedded = doc.getElementById('embedded-data');
-            if (!embedded) throw new Error('No embedded data found in file.');
-            const imported = JSON.parse(embedded.textContent || '{}');
-            if (!imported || typeof imported !== 'object') throw new Error('Invalid embedded data.');
-            DataManager.state = imported;
-            DataManager.save();
-            // Re-render shell with imported data
-            UI.init();
-            alert('Import successful.');
-          } catch (err) {
-            console.error(err);
-            alert('Import failed: ' + (err && err.message ? err.message : 'Unknown error'));
+      // --- MiniTest harness ---
+      (function initTests(){
+        const log = (...args) => {
+          const el = document.getElementById('testResults');
+          if (!el) return;
+          el.textContent += args.join(' ') + '\n';
+        };
+        const clearLog = () => {
+          const el = document.getElementById('testResults');
+          if (el) el.textContent = '';
+        };
+
+        function assertEqual(actual, expected, msg) {
+          if (String(actual) !== String(expected)) throw new Error(`${msg} (got=${actual}, expected=${expected})`);
+        }
+
+        async function testTotalsEmpty() {
+          const state = { students: [], schedule: {} };
+          const { perStudent, dailyTotals, grand } = DataManager.computeTotals(state);
+          assertEqual(perStudent.length, 0, 'No students when empty');
+          assertEqual(dailyTotals.join(','), '0,0,0,0,0', 'Daily totals zeros');
+          assertEqual(grand, 0, 'Grand total zero');
+        }
+
+        async function testTotalsSynthetic() {
+          const s1 = { id: 'a', name: 'A', role: 'PA' };
+          const s2 = { id: 'b', name: 'B', role: 'WS' };
+          const schedule = {};
+          // A: Monday first two slots, Tuesday one slot → 1.5h + 0.5h = 2.0h
+          schedule[`0|0|${s1.id}`] = true;
+          schedule[`0|1|${s1.id}`] = true;
+          schedule[`1|0|${s1.id}`] = true;
+          // B: Friday four slots → 2.0h
+          schedule[`4|0|${s2.id}`] = true;
+          schedule[`4|1|${s2.id}`] = true;
+          schedule[`4|2|${s2.id}`] = true;
+          schedule[`4|3|${s2.id}`] = true;
+          const { perStudent, dailyTotals, grand } = DataManager.computeTotals({ students:[s1,s2], schedule });
+          // A row
+          const rowA = perStudent[0];
+          assertEqual(rowA.total.toFixed(2), '1.50', 'A weekly total 1.50h');
+          assertEqual(rowA.days[0].toFixed(2), '1.00', 'A Mon 1.00h');
+          assertEqual(rowA.days[1].toFixed(2), '0.50', 'A Tue 0.50h');
+          // B row
+          const rowB = perStudent[1];
+          assertEqual(rowB.total.toFixed(2), '2.00', 'B weekly total 2.00h');
+          assertEqual(rowB.days[4].toFixed(2), '2.00', 'B Fri 2.00h');
+          // Totals
+          assertEqual(dailyTotals[0].toFixed(2), '1.00', 'Mon total 1.00h');
+          assertEqual(dailyTotals[4].toFixed(2), '2.00', 'Fri total 2.00h');
+          assertEqual(grand.toFixed(2), '3.50', 'Grand total 3.50h');
+        }
+
+        async function testSaveLoadRoundTrip() {
+          const prev = JSON.parse(JSON.stringify(DataManager.state));
+          // mutate
+          DataManager.state.students = [{ id:'x', name:'X', role:'PA', code:'X', colorIndex:0 }];
+          DataManager.state.schedule = { '0|0|x': true };
+          DataManager.save();
+          const cache = JSON.parse(localStorage.getItem('studentScheduleAppState'));
+          if (!cache) throw new Error('No cached appState after save');
+          const loaded = DataManager.load();
+          assertEqual(!!loaded, true, 'Loaded state');
+          // restore
+          DataManager.state = prev;
+          DataManager.save();
+        }
+
+        async function testExportImportRoundTrip() {
+          // Serialize clone and parse back embedded data
+          const serializer = new XMLSerializer();
+          const cloneDoc = document.cloneNode(true);
+          const embedded = cloneDoc.getElementById('embedded-data');
+          if (!embedded) throw new Error('No embedded-data element');
+          // replace with current state
+          embedded.textContent = JSON.stringify({
+            version: DataManager.state.version,
+            metadata: { ...DataManager.state.metadata, exportedAt: new Date().toISOString(), source: 'test' },
+            settings: DataManager.state.settings,
+            students: DataManager.state.students,
+            schedule: DataManager.state.schedule
+          });
+          const html = '<!DOCTYPE html>\n' + serializer.serializeToString(cloneDoc);
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, 'text/html');
+          const back = doc.getElementById('embedded-data');
+          const imported = JSON.parse(back.textContent || '{}');
+          assertEqual(JSON.stringify(imported.students).length > 0, true, 'Imported students present');
+          assertEqual(typeof imported.schedule, 'object', 'Imported schedule object');
+        }
+
+        window.__Tests = {
+          async runAll() {
+            clearLog();
+            const start = performance.now();
+            let passed = 0, failed = 0;
+            const tests = [
+              ['Totals empty', testTotalsEmpty],
+              ['Totals synthetic', testTotalsSynthetic],
+              ['Save/Load round-trip', testSaveLoadRoundTrip],
+              ['Export/Import round-trip', testExportImportRoundTrip]
+            ];
+            for (const [name, fn] of tests) {
+              try { await fn(); log(`✅ ${name}`); passed++; }
+              catch (e) { log(`❌ ${name}: ${e.message}`); failed++; }
+            }
+            const ms = Math.round(performance.now() - start);
+            log(`\nDone. Passed=${passed} Failed=${failed} (${ms} ms)`);
           }
         };
-        reader.readAsText(file);
-        // reset input for subsequent imports
-        e.target.value = '';
-      };
+      })();
+
+      // Import removed per requirements (no file input or import flow)
 
       window.addStudentFromModal = function addStudentFromModal() {
         const name = document.getElementById('studentName').value.trim();

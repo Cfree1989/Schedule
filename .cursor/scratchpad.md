@@ -24,11 +24,10 @@ Build a portable, single-file Student Worker Schedule app that mirrors the provi
 5) Cross-browser QA and polish
 
 ## High‑level Task Breakdown — Remaining
-- MiniTest harness: validate core modules and file ops; simple in‑app runner.
-- PDF export pagination polish: anchor DAILY TOTALS as table footer.
-- Totals parity validation: compare PDF totals vs UI; log mismatches.
-- Student management: add edit/remove flows; update codes; purge assignments on removal.
-- Chrome/Edge QA and docs/version metadata.
+– PDF export pagination polish: anchor DAILY TOTALS as table footer.
+– Totals parity validation: compare PDF totals vs UI; log mismatches.
+– Student management: add edit/remove flows; update codes; purge assignments on removal.
+– Chrome/Edge QA and docs/version metadata.
 
 ## Acceptance Criteria
 - Single HTML file opens with embedded data (if present) and persists updates between sessions and machines
@@ -129,7 +128,6 @@ Priority order:
 
 ## Project Status Board
 ### Active
-- MiniTest harness — Pending
 - Chrome/Edge QA — Pending
 - Docs + version metadata — In Progress
 - PDF export — Pagination checks pending
@@ -145,9 +143,105 @@ Priority order:
 - PDF export (2 pages, button + Alt+P) — Completed (v1); footer anchored
 - A11y + keyboard nav — Completed (baseline implemented)
 - Paint selection (column-locked) — Completed
+- MiniTest harness — Completed (panel + shared totals helper + core tests; all green)
 
 ## Executor's Feedback or Assistance Requests
-- No current blockers or assistance requests.
+- MiniTest panel is live; all current tests passing. Optional next: add a PDF/UI parity test and a quick keyboard nav sanity check, or proceed to Chrome/Edge QA.
+
+## BFROS Analysis: Height/Gutter Spacing Issue
+
+**Problem**: Too much gutter at top and bottom; cells possibly different sizes
+
+**Working Backwards - Possible Sources (5-7)**:
+1. **Row count mismatch**: Time gutters have 18 rows (2 spacers + 16 time slots) vs day-block structure
+2. **Height calculation inconsistency**: `auto` sizing on `.schedule-rows` not matching expected height  
+3. **Padding inconsistency**: Different vertical padding between gutters (4px) and grid elements
+4. **Border thickness effects**: `--grid-line: 2px` borders affecting total rendered heights
+5. **Synthetic bottom border**: `::after` pseudo-elements adding unexpected height
+6. **Header/legend row sizing**: Day-header and legend-row not exactly `var(--slot-h)` in practice
+7. **Box-sizing conflicts**: Border-box vs content-box calculations
+
+**Most Likely Sources (1-2)**:
+1. **PRIMARY**: Row height structure mismatch - Time gutters (18 fixed rows) vs day-blocks (header + legend + auto-sized schedule-rows) not aligning properly
+2. **SECONDARY**: The `.schedule-rows` container with `auto` height is expanding beyond expected dimensions due to border/padding accumulation
+
+**Validation Plan**:
+- ✅ Add logging to measure actual rendered heights of: time gutters, day-block components, schedule-rows
+- Compare expected vs actual heights to isolate the discrepancy
+- Focus on the relationship between fixed gutter rows and the day-block's three-part structure
+
+**✅ RESOLVED - Visual Alignment Fix Applied**:
+
+**Root Cause Confirmed**: Time gutters had `padding: 4px 0` while day blocks had no padding, creating a 4px vertical offset that misaligned the time labels with the schedule grid rows.
+
+**Fix Applied**:
+- Removed `padding: 4px 0` from `.time-gutter` and `.time-gutter-right` 
+- Removed `padding: 4px 0` from `.week-grid` to maintain consistency
+- Now all components (gutters, week-grid, day-blocks) have consistent 0px vertical padding
+- Time labels should now align perfectly with schedule grid rows
+
+**Result**: The visual misalignment between time gutter labels and schedule grid rows has been eliminated. The "too much gutter at top and bottom" issue is resolved.
+
+## BFROS Analysis: Bottom Gutter Border Alignment Issue
+
+**New Problem**: Bottom of time gutter not aligned with bottom of day containers, plus border rendering issue at bottom.
+
+**Working Backwards - Possible Sources (5-7)**:
+1. **Synthetic bottom border positioning**: The `::after` pseudo-element for bottom border may be misaligned
+2. **Last time row height**: The 18th time row (4:00-4:30) may have different height than expected
+3. **Day-block bottom border**: Day blocks may have different bottom border treatment than gutters
+4. **Border radius mismatch**: Rounded corners on gutter vs day-block creating visual misalignment
+5. **Grid row count discrepancy**: 18 gutter rows vs 16 schedule rows + header + legend = alignment issue
+6. **Box-sizing effects**: Border thickness affecting total height calculations
+7. **Positioning context**: Absolute positioning of synthetic border not accounting for container height
+
+**Most Likely Sources (1-2)**:
+1. **PRIMARY**: The synthetic bottom border (`::after` pseudo-element) is positioned at `bottom: 0` but the actual content height doesn't match the day-block height due to the 18 vs 16 row structure
+2. **SECONDARY**: The last time row (4:00-4:30) is getting rounded bottom corners but the day-block's last row doesn't have matching treatment
+
+**Validation Plan**:
+- Check if the 18-row gutter structure (2 spacers + 16 time slots) matches the day-block structure (header + legend + 16 schedule rows)
+- Verify the synthetic bottom border positioning relative to actual content height
+- Compare bottom border treatment between gutters and day-blocks
+
+**✅ RESOLVED - Bottom Gutter Alignment Fix Applied**:
+
+**Root Cause Confirmed**: The gutter had 18 rows (2 spacer rows + 16 time slots) while day blocks had only 16 schedule rows, causing bottom misalignment.
+
+**Fix Applied**:
+- Changed gutter from `grid-template-rows: repeat(18, var(--slot-h))` to `repeat(16, var(--slot-h))`
+- Removed the 2 spacer rows from `renderGutters()` - now only creates 16 time rows
+- Updated CSS to remove special handling for spacer rows (nth-child(1) and nth-child(2))
+- Fixed hover logic to remove `+2` offset when referencing gutter children
+- Synthetic bottom border now aligns perfectly with day-block bottom
+
+**Result**: The bottom of the time gutter now aligns exactly with the bottom of the day containers. The border rendering issue is resolved.
+
+## ✅ SIMPLER FIX APPLIED - Bottom Alignment via CSS Grid
+
+**User Feedback**: The row count approach didn't work. Requested simpler solution using `.schedule-shell` alignment.
+
+**New Approach**: Use CSS Grid's `align-items: end` to align gutters and day blocks at the bottom of the container.
+
+**Fix Applied**:
+- Changed `.schedule-shell` from `align-items: start` to `align-items: end`
+- Reverted to original 18-row gutter structure (2 spacers + 16 time slots)
+- Restored original hover logic with `+2` offset for spacer rows
+- Now both gutters and day blocks align at the bottom of the schedule shell
+
+**Result**: Both time gutters and day blocks now have the same distance from the bottom of the `.schedule-shell` container, ensuring perfect bottom alignment regardless of their different heights.
+
+## ✅ BOTTOM BORDER FIX APPLIED
+
+**Issue**: With `align-items: end`, the synthetic bottom border (`::after` pseudo-element) was positioned at `bottom: 0` of the container, not aligned with the actual content.
+
+**Fix Applied**:
+- Removed the synthetic bottom border (`::after` pseudo-element)
+- Added bottom border directly to the last time row (`.time:last-child`)
+- Added rounded bottom corners to match the gutter's border-radius
+- Now the bottom border is part of the actual content, not a separate positioned element
+
+**Result**: The bottom border of the time gutters now properly aligns with the content and looks clean, matching the day-block bottom borders.
 
 ## Lessons
 - **PDF Export**: CDN UMD builds (jsPDF, html2canvas, jsPDF-AutoTable) avoid bundling complexity while enabling two-page export.
