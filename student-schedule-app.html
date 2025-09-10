@@ -43,6 +43,13 @@
       grid-template-rows: auto 1fr auto;
       min-height: 100dvh;
     }
+    
+    .app-main {
+      display: grid;
+      grid-template-rows: auto auto;
+      gap: 8px;
+      padding: 8px 16px;
+    }
 
     .app-header {
       display: flex;
@@ -83,19 +90,14 @@
     button.danger { background: rgba(255, 90, 90, 0.16); border-color: rgba(255, 90, 90, 0.4); }
     button.primary { background: rgba(255,255,255,0.25); }
 
-    .app-main {
-      padding: 16px;
-      display: grid;
-      gap: 16px;
-    }
 
     .schedule-shell {
       display: grid;
       grid-template-columns: minmax(60px, 80px) 1fr minmax(60px, 80px);
       gap: 8px;
-      align-items: end; /* Align gutters and day blocks at the bottom */
-      max-height: calc(100dvh - 140px);
-      overflow: auto;
+      align-items: end; /* Align gutters and day blocks at the bottom. do not change this.*/
+      max-height: 45vh; /* Cap height to prevent excessive negative space above */
+      overflow: auto;   /* Allow scroll when needed */
     }
 
     .time-gutter, .time-gutter-right {
@@ -246,14 +248,7 @@
       background: var(--surface);
       color: var(--muted-text);
     }
-    .badges { display: flex; gap: 8px; align-items: center; }
-    .badge { background: var(--legend-bg); border: 1px solid var(--border); padding: 4px 8px; border-radius: 999px; }
 
-    /* Tests panel */
-    .tests-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
-    .tests-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .tests-title { font-weight: 700; }
-    #testResults { background: #111; color: #e6e6e6; padding: 10px; border-radius: 8px; max-height: 240px; overflow: auto; }
 
     /* Modal */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: none; align-items: center; justify-content: center; z-index: 50; }
@@ -287,7 +282,6 @@
         <button class="icon-btn primary" id="btnPDF" title="Export PDF (Alt+P)">PDF</button>
         <button class="icon-btn" id="btnDownload" title="Download single-file HTML">Download</button>
         <button class="icon-btn" id="btnAddStudent" title="Add a student">Add Student</button>
-        <button class="icon-btn" id="btnTests" title="Show MiniTest panel">Tests</button>
       </div>
     </header>
 
@@ -321,24 +315,10 @@
         <div id="totalsHelp" class="visually-hidden">Shows per-student daily and weekly hours.</div>
       </section>
 
-      <section class="tests-panel" id="testsPanel" aria-label="MiniTest" style="display:none">
-        <div class="tests-header">
-          <div class="tests-title">MiniTest</div>
-          <div class="tests-actions">
-            <button class="btn" id="btnRunTests">Run Tests</button>
-          </div>
-        </div>
-        <pre id="testResults" aria-live="polite">(no results yet)</pre>
-      </section>
     </main>
 
     <footer class="app-footer" role="contentinfo">
       <div>Single-file app v1.0.0</div>
-      <div class="badges">
-        <div class="badge">Earth-tone Theme</div>
-        <div class="badge">Embedded Data</div>
-        <div class="badge">PDF Ready</div>
-      </div>
     </footer>
   </div>
 
@@ -539,25 +519,6 @@
           document.getElementById('btnPDF').addEventListener('click', window.exportToPDF);
           document.getElementById('btnDownload').addEventListener('click', window.exportSchedule);
           document.getElementById('btnAddStudent').addEventListener('click', () => this.openStudentModal());
-          document.getElementById('btnTests').addEventListener('click', () => {
-            const p = document.getElementById('testsPanel');
-            const opening = p.style.display === 'none';
-            p.style.display = opening ? 'block' : 'none';
-            if (opening) {
-              const pre = document.getElementById('testResults');
-              const isEmpty = pre && pre.textContent && pre.textContent.trim() === '(no results yet)';
-              if (isEmpty && window.__Tests && typeof window.__Tests.runAll === 'function') {
-                setTimeout(() => window.__Tests.runAll(), 0);
-              }
-            }
-          });
-          document.getElementById('btnRunTests').addEventListener('click', () => {
-            if (window.__Tests && typeof window.__Tests.runAll === 'function') {
-              window.__Tests.runAll();
-            } else {
-              alert('Tests not loaded yet. Try again in a moment.');
-            }
-          });
 
           document.getElementById('studentCancel').addEventListener('click', () => this.closeStudentModal());
           document.getElementById('studentSave').addEventListener('click', window.addStudentFromModal);
@@ -1112,117 +1073,6 @@
         URL.revokeObjectURL(a.href);
       };
 
-      // --- MiniTest harness ---
-      (function initTests(){
-        const log = (...args) => {
-          const el = document.getElementById('testResults');
-          if (!el) return;
-          el.textContent += args.join(' ') + '\n';
-        };
-        const clearLog = () => {
-          const el = document.getElementById('testResults');
-          if (el) el.textContent = '';
-        };
-
-        function assertEqual(actual, expected, msg) {
-          if (String(actual) !== String(expected)) throw new Error(`${msg} (got=${actual}, expected=${expected})`);
-        }
-
-        async function testTotalsEmpty() {
-          const state = { students: [], schedule: {} };
-          const { perStudent, dailyTotals, grand } = DataManager.computeTotals(state);
-          assertEqual(perStudent.length, 0, 'No students when empty');
-          assertEqual(dailyTotals.join(','), '0,0,0,0,0', 'Daily totals zeros');
-          assertEqual(grand, 0, 'Grand total zero');
-        }
-
-        async function testTotalsSynthetic() {
-          const s1 = { id: 'a', name: 'A', role: 'PA' };
-          const s2 = { id: 'b', name: 'B', role: 'WS' };
-          const schedule = {};
-          // A: Monday first two slots, Tuesday one slot → 1.5h + 0.5h = 2.0h
-          schedule[`0|0|${s1.id}`] = true;
-          schedule[`0|1|${s1.id}`] = true;
-          schedule[`1|0|${s1.id}`] = true;
-          // B: Friday four slots → 2.0h
-          schedule[`4|0|${s2.id}`] = true;
-          schedule[`4|1|${s2.id}`] = true;
-          schedule[`4|2|${s2.id}`] = true;
-          schedule[`4|3|${s2.id}`] = true;
-          const { perStudent, dailyTotals, grand } = DataManager.computeTotals({ students:[s1,s2], schedule });
-          // A row
-          const rowA = perStudent[0];
-          assertEqual(rowA.total.toFixed(2), '1.50', 'A weekly total 1.50h');
-          assertEqual(rowA.days[0].toFixed(2), '1.00', 'A Mon 1.00h');
-          assertEqual(rowA.days[1].toFixed(2), '0.50', 'A Tue 0.50h');
-          // B row
-          const rowB = perStudent[1];
-          assertEqual(rowB.total.toFixed(2), '2.00', 'B weekly total 2.00h');
-          assertEqual(rowB.days[4].toFixed(2), '2.00', 'B Fri 2.00h');
-          // Totals
-          assertEqual(dailyTotals[0].toFixed(2), '1.00', 'Mon total 1.00h');
-          assertEqual(dailyTotals[4].toFixed(2), '2.00', 'Fri total 2.00h');
-          assertEqual(grand.toFixed(2), '3.50', 'Grand total 3.50h');
-        }
-
-        async function testSaveLoadRoundTrip() {
-          const prev = JSON.parse(JSON.stringify(DataManager.state));
-          // mutate
-          DataManager.state.students = [{ id:'x', name:'X', role:'PA', code:'X', colorIndex:0 }];
-          DataManager.state.schedule = { '0|0|x': true };
-          DataManager.save();
-          const cache = JSON.parse(localStorage.getItem('studentScheduleAppState'));
-          if (!cache) throw new Error('No cached appState after save');
-          const loaded = DataManager.load();
-          assertEqual(!!loaded, true, 'Loaded state');
-          // restore
-          DataManager.state = prev;
-          DataManager.save();
-        }
-
-        async function testExportImportRoundTrip() {
-          // Serialize clone and parse back embedded data
-          const serializer = new XMLSerializer();
-          const cloneDoc = document.cloneNode(true);
-          const embedded = cloneDoc.getElementById('embedded-data');
-          if (!embedded) throw new Error('No embedded-data element');
-          // replace with current state
-          embedded.textContent = JSON.stringify({
-            version: DataManager.state.version,
-            metadata: { ...DataManager.state.metadata, exportedAt: new Date().toISOString(), source: 'test' },
-            settings: DataManager.state.settings,
-            students: DataManager.state.students,
-            schedule: DataManager.state.schedule
-          });
-          const html = '<!DOCTYPE html>\n' + serializer.serializeToString(cloneDoc);
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(html, 'text/html');
-          const back = doc.getElementById('embedded-data');
-          const imported = JSON.parse(back.textContent || '{}');
-          assertEqual(JSON.stringify(imported.students).length > 0, true, 'Imported students present');
-          assertEqual(typeof imported.schedule, 'object', 'Imported schedule object');
-        }
-
-        window.__Tests = {
-          async runAll() {
-            clearLog();
-            const start = performance.now();
-            let passed = 0, failed = 0;
-            const tests = [
-              ['Totals empty', testTotalsEmpty],
-              ['Totals synthetic', testTotalsSynthetic],
-              ['Save/Load round-trip', testSaveLoadRoundTrip],
-              ['Export/Import round-trip', testExportImportRoundTrip]
-            ];
-            for (const [name, fn] of tests) {
-              try { await fn(); log(`✅ ${name}`); passed++; }
-              catch (e) { log(`❌ ${name}: ${e.message}`); failed++; }
-            }
-            const ms = Math.round(performance.now() - start);
-            log(`\nDone. Passed=${passed} Failed=${failed} (${ms} ms)`);
-          }
-        };
-      })();
 
       // Import removed per requirements (no file input or import flow)
 

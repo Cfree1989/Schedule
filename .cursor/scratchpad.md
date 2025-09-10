@@ -11,7 +11,7 @@ Build a portable, single-file Student Worker Schedule app that mirrors the provi
 - Export/Import: Single-file HTML with embedded JSON; on load read embedded data first, else fall back to localStorage, else bootstrap defaults
 - PDF Export: Two pages; Page 1 landscape schedule grid only; Page 2 per-person totals. Provide a visible header PDF button and keyboard shortcut Alt+P (also accessible via overflow menu)
 - Browsers: Chrome and Edge primary; test for parity
-- Testing: Include MiniTest harness (dev mode) covering DataManager, ScheduleGrid, StudentManager, File operations
+- Testing: Removed per user request (no testing functionality needed)
 - Header: "STUDENT WORKER SCHEDULE | 2024–2025" (configurable)
 - Seed: Start with 5 placeholder students
 - Export filename: `student_schedule_YYYY-MM-DD.html`
@@ -37,7 +37,7 @@ Build a portable, single-file Student Worker Schedule app that mirrors the provi
 - PDF export produces two pages: Page 1 landscape schedule grid (no totals), Page 2 per-student totals; print quality is crisp on A4/Letter
 - A visible PDF button and Alt+P shortcut both work; overflow menu item available
 - Works in current Chrome and Edge
-- MiniTest reports all green for core modules
+- No testing functionality (removed per user request)
 
 ## Risks & Mitigations
 - Large canvas memory when exporting PDF → use measured capture regions and a safe scale (2–3x) with fallback to 1.5x if memory caps are detected
@@ -143,7 +143,7 @@ Priority order:
 - PDF export (2 pages, button + Alt+P) — Completed (v1); footer anchored
 - A11y + keyboard nav — Completed (baseline implemented)
 - Paint selection (column-locked) — Completed
-- MiniTest harness — Completed (panel + shared totals helper + core tests; all green)
+- MiniTest harness — Removed (per user request)
 
 ## Executor's Feedback or Assistance Requests
 - ✅ **OPTIMAL BOTTOM ALIGNMENT IMPLEMENTED**: Successfully implemented the optimal bottom alignment approach:
@@ -153,7 +153,7 @@ Priority order:
   - Now 16 time rows align perfectly with 16 schedule rows at the bottom
   - Day blocks maintain 18 rows (1 header + 1 legend + 16 schedule rows)
   - Bottom alignment achieved via `align-items: end` on `.schedule-shell`
-- MiniTest panel is live; all current tests passing. Optional next: add a PDF/UI parity test and a quick keyboard nav sanity check, or proceed to Chrome/Edge QA.
+- Tests functionality removed per user request. Ready for Chrome/Edge QA.
 
 ## BFROS Analysis: Height/Gutter Spacing Issue
 
