@@ -131,7 +131,7 @@ Priority order:
 - Chrome/Edge QA — Pending
 - Docs + version metadata — In Progress
 - PDF export — Pagination checks pending
- - Student add persistence and UX — In Progress
+- Theme system testing — In Progress
 
 ### Completed
 - Scaffold single-file app shell — Completed
@@ -148,6 +148,7 @@ Priority order:
  - Add Student: local precedence + Enter submit — Completed
  - Manage Students: modal with delete and schedule purge — Completed
 - Merge Add into Manage modal — Completed
+- Seasonal color theme system — Completed
 
 ## Executor's Feedback or Assistance Requests
 —
@@ -157,6 +158,7 @@ Priority order:
 - **Modal UX**: Bind Enter on the modal container to trigger the primary action, but guard against firing when focused on Cancel.
  - **Removal logic safety**: On delete, purge schedule keys where the third pipe-delimited segment equals the `studentId` to avoid orphaned assignments.
 - **Single modal UX**: Consolidating add and manage reduces cognitive load; keep add form at top, keep modal open after adding to facilitate multiple entries.
+- **Theme system architecture**: Use CSS custom properties with `data-theme` attributes for clean theme switching; store theme preference in both localStorage and data state for persistence across sessions and exports.
 
 ## Executor's Feedback or Assistance Requests
 - ✅ **OPTIMAL BOTTOM ALIGNMENT IMPLEMENTED**: Successfully implemented the optimal bottom alignment approach:

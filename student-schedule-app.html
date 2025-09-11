@@ -6,6 +6,7 @@
   <title>Student Worker Schedule | Single-file App</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23705c49'/%3E%3Ctext x='50%25' y='50%25' dy='.35em' text-anchor='middle' font-family='Segoe UI, Arial' font-size='32' fill='%23ffffff'%3ES%3C/text%3E%3C/svg%3E" />
   <style>
+    /* Default Spring Theme */
     :root {
       --bg: #faf8f4;
       --surface: #fffdf8;
@@ -27,6 +28,66 @@
       --corner-r: 10px;
       --grid-line: 2px;
       --min-col-w: 20px; /* minimum width per student column (timeslots) */
+    }
+
+    /* Summer Theme - Bright and Vibrant */
+    [data-theme="summer"] {
+      --bg: #fff8e1;
+      --surface: #fffef7;
+      --text: #1a1a1a;
+      --muted-text: #424242;
+      --border: #ffcc80;
+      --header-bg: #ff9800;
+      --header-text: #ffffff;
+      --accent: #ff5722;
+      --accent-2: #4caf50;
+      --danger: #f44336;
+      --focus: #2196f3;
+      --chip-bg: #ffe0b2;
+
+      --day-header-bg: #ffcc80;
+      --legend-bg: #fff3e0;
+      --grid-bg: #fffef7;
+    }
+
+    /* Fall Theme - Warm Earth Tones */
+    [data-theme="fall"] {
+      --bg: #f5f1eb;
+      --surface: #fdf6f0;
+      --text: #3e2723;
+      --muted-text: #5d4037;
+      --border: #d7ccc8;
+      --header-bg: #8d6e63;
+      --header-text: #ffffff;
+      --accent: #d84315;
+      --accent-2: #689f38;
+      --danger: #d32f2f;
+      --focus: #1976d2;
+      --chip-bg: #efebe9;
+
+      --day-header-bg: #d7ccc8;
+      --legend-bg: #f3e5f5;
+      --grid-bg: #fdf6f0;
+    }
+
+    /* Winter Theme - Cool and Crisp */
+    [data-theme="winter"] {
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --text: #212529;
+      --muted-text: #495057;
+      --border: #dee2e6;
+      --header-bg: #495057;
+      --header-text: #ffffff;
+      --accent: #6c757d;
+      --accent-2: #20c997;
+      --danger: #dc3545;
+      --focus: #0d6efd;
+      --chip-bg: #e9ecef;
+
+      --day-header-bg: #e9ecef;
+      --legend-bg: #f8f9fa;
+      --grid-bg: #ffffff;
     }
 
     html, body {
@@ -93,6 +154,24 @@
     button.icon-btn:hover, .btn:hover { background: rgba(255,255,255,0.16); }
     button.danger { background: rgba(255, 90, 90, 0.16); border-color: rgba(255, 90, 90, 0.4); }
     button.primary { background: rgba(255,255,255,0.25); }
+
+    /* Theme selector styling */
+    .theme-selector {
+      appearance: none;
+      border: 1px solid rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      min-width: 100px;
+    }
+    .theme-selector:hover { background: rgba(255,255,255,0.16); }
+    .theme-selector:focus { 
+      outline: none; 
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.3);
+    }
 
 
     .schedule-shell {
@@ -282,12 +361,73 @@
     .manage-row .meta { display: flex; gap: 8px; align-items: center; }
     .chip { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 20px; padding: 0 6px; border-radius: 10px; font-size: 12px; font-weight: 700; border: 1px solid var(--border); background: var(--chip-bg); }
 
-    /* Student color chips (deterministic palette) */
+    /* Student color chips - Spring Theme (default) - 15 colors */
     .swatch-0 { background: #D8C3A5; }
     .swatch-1 { background: #E9D8A6; }
     .swatch-2 { background: #CDE5D7; }
     .swatch-3 { background: #F1D6C1; }
     .swatch-4 { background: #BFD7EA; }
+    .swatch-5 { background: #F8BBD9; }
+    .swatch-6 { background: #C8E6C9; }
+    .swatch-7 { background: #FFCDD2; }
+    .swatch-8 { background: #D1C4E9; }
+    .swatch-9 { background: #B2DFDB; }
+    .swatch-10 { background: #FFE0B2; }
+    .swatch-11 { background: #DCEDC8; }
+    .swatch-12 { background: #F3E5F5; }
+    .swatch-13 { background: #E1F5FE; }
+    .swatch-14 { background: #FFF3E0; }
+
+    /* Summer Theme Student Colors - 15 colors */
+    [data-theme="summer"] .swatch-0 { background: #FFB74D; }
+    [data-theme="summer"] .swatch-1 { background: #FF8A65; }
+    [data-theme="summer"] .swatch-2 { background: #81C784; }
+    [data-theme="summer"] .swatch-3 { background: #FFD54F; }
+    [data-theme="summer"] .swatch-4 { background: #64B5F6; }
+    [data-theme="summer"] .swatch-5 { background: #F06292; }
+    [data-theme="summer"] .swatch-6 { background: #4CAF50; }
+    [data-theme="summer"] .swatch-7 { background: #FF5722; }
+    [data-theme="summer"] .swatch-8 { background: #9C27B0; }
+    [data-theme="summer"] .swatch-9 { background: #00BCD4; }
+    [data-theme="summer"] .swatch-10 { background: #FF9800; }
+    [data-theme="summer"] .swatch-11 { background: #8BC34A; }
+    [data-theme="summer"] .swatch-12 { background: #E91E63; }
+    [data-theme="summer"] .swatch-13 { background: #03A9F4; }
+    [data-theme="summer"] .swatch-14 { background: #FFC107; }
+
+    /* Fall Theme Student Colors - 15 colors */
+    [data-theme="fall"] .swatch-0 { background: #BCAAA4; }
+    [data-theme="fall"] .swatch-1 { background: #A1887F; }
+    [data-theme="fall"] .swatch-2 { background: #8D6E63; }
+    [data-theme="fall"] .swatch-3 { background: #D84315; }
+    [data-theme="fall"] .swatch-4 { background: #FF8F00; }
+    [data-theme="fall"] .swatch-5 { background: #795548; }
+    [data-theme="fall"] .swatch-6 { background: #5D4037; }
+    [data-theme="fall"] .swatch-7 { background: #BF360C; }
+    [data-theme="fall"] .swatch-8 { background: #E65100; }
+    [data-theme="fall"] .swatch-9 { background: #FF6F00; }
+    [data-theme="fall"] .swatch-10 { background: #6D4C41; }
+    [data-theme="fall"] .swatch-11 { background: #4E342E; }
+    [data-theme="fall"] .swatch-12 { background: #3E2723; }
+    [data-theme="fall"] .swatch-13 { background: #FF5722; }
+    [data-theme="fall"] .swatch-14 { background: #FF9800; }
+
+    /* Winter Theme Student Colors - 15 colors */
+    [data-theme="winter"] .swatch-0 { background: #90A4AE; }
+    [data-theme="winter"] .swatch-1 { background: #78909C; }
+    [data-theme="winter"] .swatch-2 { background: #607D8B; }
+    [data-theme="winter"] .swatch-3 { background: #20C997; }
+    [data-theme="winter"] .swatch-4 { background: #6C757D; }
+    [data-theme="winter"] .swatch-5 { background: #546E7A; }
+    [data-theme="winter"] .swatch-6 { background: #455A64; }
+    [data-theme="winter"] .swatch-7 { background: #37474F; }
+    [data-theme="winter"] .swatch-8 { background: #00ACC1; }
+    [data-theme="winter"] .swatch-9 { background: #495057; }
+    [data-theme="winter"] .swatch-10 { background: #424242; }
+    [data-theme="winter"] .swatch-11 { background: #263238; }
+    [data-theme="winter"] .swatch-12 { background: #212529; }
+    [data-theme="winter"] .swatch-13 { background: #17A2B8; }
+    [data-theme="winter"] .swatch-14 { background: #343A40; }
 
     .visually-hidden { position: absolute !important; height: 1px; width: 1px; overflow: hidden; clip: rect(1px, 1px, 1px, 1px); white-space: nowrap; }
   </style>
@@ -297,11 +437,17 @@
     <header class="app-header" role="banner">
       <div class="header-title" id="headerTitle" aria-live="polite">STUDENT WORKER SCHEDULE | 2024–2025</div>
       <div class="header-actions" role="toolbar" aria-label="Schedule actions">
+        <select class="theme-selector" id="themeSelector" title="Choose color theme" aria-label="Color theme">
+          <option value="spring">🌸 Spring</option>
+          <option value="summer">☀️ Summer</option>
+          <option value="fall">🍂 Fall</option>
+          <option value="winter">❄️ Winter</option>
+        </select>
         <button class="icon-btn" id="btnSave" title="Quick Save (Ctrl+S)">Save</button>
         <button class="icon-btn danger" id="btnClear" title="Clear all times">Clear Times</button>
-        <button class="icon-btn primary" id="btnPDF" title="Export PDF (Alt+P)">PDF</button>
-        <button class="icon-btn" id="btnDownload" title="Download single-file HTML">Download</button>
         <button class="icon-btn" id="btnManageStudents" title="Manage students">Manage Students</button>
+        <button class="icon-btn" id="btnDownload" title="Download single-file HTML">Download</button>
+        <button class="icon-btn" id="btnPDF" title="Export PDF (Alt+P)">PDF</button>
       </div>
     </header>
 
@@ -380,7 +526,10 @@
   {
     "version": "1.0.0",
     "metadata": {"createdAt": "${new Date().toISOString()}", "source": "embedded"},
-    "settings": { "headerTitle": "STUDENT WORKER SCHEDULE | 2024–2025" },
+    "settings": { 
+      "headerTitle": "STUDENT WORKER SCHEDULE | 2024–2025",
+      "theme": "spring"
+    },
     "students": [
       {"id":"stu-1","name":"Jane Doe","code":"JD","role":"PA","colorIndex":0},
       {"id":"stu-2","name":"John Doe","code":"JDo","role":"WS","colorIndex":1},
@@ -458,7 +607,7 @@
             name: p.name || p.fullName || `Student ${idx+1}`,
             code: p.code || (p.name ? p.name.split(' ').map(s=>s[0]).join('').slice(0,3).toUpperCase() : `S${idx+1}`),
             role: p.role || 'WS',
-            colorIndex: idx % 5
+            colorIndex: idx % 15
           })) : [];
           return {
             version: APP_VERSION,
@@ -473,7 +622,10 @@
           return this.getEmbedded() || {
             version: APP_VERSION,
             metadata: { createdAt: new Date().toISOString(), source: 'defaults' },
-            settings: { headerTitle: 'STUDENT WORKER SCHEDULE | 2024–2025' },
+            settings: { 
+              headerTitle: 'STUDENT WORKER SCHEDULE | 2024–2025',
+              theme: 'spring'
+            },
             students: [
               {id:'stu-1',name:'Jane Doe',code:'JD',role:'PA',colorIndex:0},
               {id:'stu-2',name:'John Doe',code:'JDo',role:'WS',colorIndex:1},
@@ -531,6 +683,9 @@
 
       const UI = {
         init() {
+          // Initialize theme system
+          this.initThemeSystem();
+
           // Render header
           const title = DataManager.state?.settings?.headerTitle || 'STUDENT WORKER SCHEDULE | 2024–2025';
           document.getElementById('headerTitle').textContent = title;
@@ -1088,6 +1243,55 @@
         },
         closeManageStudentsModal() {
           document.getElementById('manageStudentsModal').style.display = 'none';
+        },
+
+        // Theme system methods
+        initThemeSystem() {
+          // Load theme from data state, localStorage, or default to spring
+          const dataTheme = DataManager.state?.settings?.theme;
+          const savedTheme = localStorage.getItem('studentScheduleTheme');
+          const defaultTheme = 'spring';
+          const themeToUse = dataTheme || savedTheme || defaultTheme;
+          
+          this.setTheme(themeToUse);
+          
+          // Set up theme selector
+          const themeSelector = document.getElementById('themeSelector');
+          if (themeSelector) {
+            themeSelector.value = themeToUse;
+            themeSelector.addEventListener('change', (e) => {
+              this.setTheme(e.target.value);
+            });
+          }
+        },
+
+        setTheme(themeName) {
+          // Validate theme name
+          const validThemes = ['spring', 'summer', 'fall', 'winter'];
+          if (!validThemes.includes(themeName)) {
+            console.warn('Invalid theme:', themeName);
+            return;
+          }
+
+          // Apply theme to document
+          document.documentElement.setAttribute('data-theme', themeName);
+          
+          // Save to localStorage
+          localStorage.setItem('studentScheduleTheme', themeName);
+          
+          // Save to data state
+          if (DataManager.state && DataManager.state.settings) {
+            DataManager.state.settings.theme = themeName;
+            DataManager.save();
+          }
+          
+          // Update theme selector if it exists
+          const themeSelector = document.getElementById('themeSelector');
+          if (themeSelector) {
+            themeSelector.value = themeName;
+          }
+
+          console.log('Theme changed to:', themeName);
         }
       };
 
@@ -1270,7 +1474,10 @@
           embedded.textContent = JSON.stringify({
             version: DataManager.state.version || APP_VERSION,
             metadata: { ...DataManager.state.metadata, exportedAt: new Date().toISOString(), source: 'export' },
-            settings: DataManager.state.settings,
+            settings: {
+              ...DataManager.state.settings,
+              theme: DataManager.state.settings?.theme || 'spring'
+            },
             students: DataManager.state.students,
             schedule: DataManager.state.schedule
           });
@@ -1293,7 +1500,7 @@
         const role = document.getElementById('studentRole').value;
         if (!name) { alert('Please enter a name.'); return; }
         const code = name.split(/\s+/).map(s => s[0]).join('').slice(0,3).toUpperCase();
-        const colorIndex = (DataManager.state.students.length) % 5;
+        const colorIndex = (DataManager.state.students.length) % 15;
         const id = 'stu-' + (Date.now());
         DataManager.state.students.push({ id, name, code, role, colorIndex });
         DataManager.save();
