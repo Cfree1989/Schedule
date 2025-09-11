@@ -131,6 +131,7 @@ Priority order:
 - Chrome/Edge QA — Pending
 - Docs + version metadata — In Progress
 - PDF export — Pagination checks pending
+ - Student add persistence and UX — In Progress
 
 ### Completed
 - Scaffold single-file app shell — Completed
@@ -144,6 +145,18 @@ Priority order:
 - A11y + keyboard nav — Completed (baseline implemented)
 - Paint selection (column-locked) — Completed
 - MiniTest harness — Removed (per user request)
+ - Add Student: local precedence + Enter submit — Completed
+ - Manage Students: modal with delete and schedule purge — Completed
+- Merge Add into Manage modal — Completed
+
+## Executor's Feedback or Assistance Requests
+—
+
+## Lessons
+- **Load precedence for embedded apps**: Prefer previously saved `appState` from `localStorage` over embedded JSON so that newly added students persist across reloads until the user explicitly exports a new single-file.
+- **Modal UX**: Bind Enter on the modal container to trigger the primary action, but guard against firing when focused on Cancel.
+ - **Removal logic safety**: On delete, purge schedule keys where the third pipe-delimited segment equals the `studentId` to avoid orphaned assignments.
+- **Single modal UX**: Consolidating add and manage reduces cognitive load; keep add form at top, keep modal open after adding to facilitate multiple entries.
 
 ## Executor's Feedback or Assistance Requests
 - ✅ **OPTIMAL BOTTOM ALIGNMENT IMPLEMENTED**: Successfully implemented the optimal bottom alignment approach:
@@ -322,3 +335,85 @@ Priority order:
 - **Data Model**: Sparse map `${day}-${slot}-${personCode}` → `true`; 0.5h per slot
 - **Storage**: Embedded JSON → localStorage → defaults; autosave via MutationObserver
 - **Libraries**: jsPDF, html2canvas, jsPDF-AutoTable via CDN UMD
+
+---
+
+# Planner — Schedule Masterplan (Outline for Approval)
+
+## Goals, Audience, Scope
+- **Goals**: Provide a single authoritative document that explains app capabilities feature-by-feature, the architecture behind them, and how to extend/maintain the system.
+- **Audience**: Non-technical stakeholders (overview sections) and technical contributors (architecture, code citations, and extension guides).
+- **In/Out of Scope**:
+  - In: Current single-file app (`student-schedule-app.html`) features, architecture, accessibility, persistence, export/PDF, and maintainability patterns.
+  - Out: Multi-file builds, backend integrations, Dockerized deployments, or import flows not present in this file.
+
+## Proposed Table of Contents
+1. Executive Summary
+2. Feature Inventory (Current vs Planned)
+3. System Architecture
+   - Runtime model (single-file app, embedded JSON, localStorage fallback)
+   - Core modules: Data layer, UI layer, Export/PDF, Student Management
+4. Data Model & Persistence
+   - Schema (`settings`, `students`, `schedule`, `metadata`)
+   - Storage precedence and migration
+5. UI/UX & Accessibility
+   - Header layout and actions (Save, Clear Times, PDF, Download, Add Student)
+   - Layout and styling system (CSS tokens, shells, gutters, day-blocks)
+   - Grid interaction (click, keyboard, paint selection)
+   - ARIA roles and keyboard model
+6. Feature Deep Dives (one section per feature)
+   - Header Buttons & Actions (Save, Clear, PDF, Download, Add Student)
+   - Schedule Grid & Painting (time gutters, legend, cells)
+   - Weekly Totals computation
+   - Student Management (Add)
+   - Save/Clear (local persistence)
+   - Single-file Export (HTML)
+   - PDF Export (2 pages)
+7. Performance Considerations
+8. Quality & Testing Approach (lightweight, manual, parity checks)
+9. Extension Roadmap (Edit/Remove students, constraints, coverage rules)
+10. Maintenance Guide (versioning, defaults, CSS tokens)
+
+## Code Mapping for Citations (by section)
+- Embedded bootstrap data: `student-schedule-app.html` lines 350–365
+- CSS theme and layout tokens: lines 8–273 (notably `:root`, `.schedule-shell`, `.time-gutter`, `.week-grid`, `.day-block`)
+- Header structure and buttons (HTML): lines 276–286
+- Button wiring (JS): lines 516–525
+- Libraries (UMD): lines 367–371
+- Data layer (`DataManager`): lines 393–502
+  - Totals computation: 395–418
+  - Embedded/defaults/load/save: 419–502
+- UI layer (`UI`): lines 504–880
+  - Initialization/wiring: 505–546
+  - Gutters: 547–563
+  - Header actions attach: 516–525
+  - Totals rendering: 565–601
+  - Week grid render: 603–869
+  - Painting model (pointer events): 745–822
+  - Keyboard navigation: 825–861
+  - Student modal open/close: 871–879
+- Public API (buttons):
+  - Save: 884–888
+  - Clear times: 890–898
+  - Export PDF: 900–1049
+  - Export single-file HTML: 1051–1074
+  - Add student from modal: 1079–1093
+- Bootstrapping: 1095–1101
+
+## Deliverables & Success Criteria
+- A new document named “Schedule Masterplan” covering all ToC sections with inline code citations from `student-schedule-app.html` and brief rationale for design choices.
+- Feature sections include: purpose, UX behavior, data flows, primary APIs, and extendability notes.
+- Architecture section clearly explains single-file strategy, data precedence, and module responsibilities.
+- PDF/export sections explain library roles, fallbacks, and parity checks with UI totals.
+
+## Approval Checklist
+- ToC meets your needs (confirm or adjust ordering/names)
+- Code mapping lines acceptable for citation depth
+- Include/exclude “Extension Roadmap” items as desired
+- Tone: mixed audience (brief non-technical summaries, then technical detail)
+
+## Handoff to Executor (upon approval)
+- Create `Docs/Schedule Masterplan.md` using the ToC above
+- Populate sections with cited snippets using the prescribed citation format
+- Verify references and links; ensure document is navigable and concise
+

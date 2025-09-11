@@ -261,6 +261,20 @@
     .modal input, .modal select { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: #fff; box-sizing: border-box; }
     @media (max-width: 520px) { .modal .row { grid-template-columns: 1fr; } }
     .modal .actions { margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end; }
+    /* Modal-specific button styling for better contrast on light background */
+    .modal .btn { background: #f7f3ec; border: 1px solid var(--border); color: var(--text); }
+    .modal .btn:hover { background: #f1ebe2; }
+    .modal .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .modal .btn.primary:hover { filter: brightness(0.95); }
+    .modal .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+    /* Modal close X */
+    .modal { position: relative; }
+    .modal .close-x { position: absolute; top: 8px; right: 8px; background: transparent; border: none; color: var(--muted-text); font-size: 20px; line-height: 1; padding: 4px; cursor: pointer; border-radius: 6px; }
+    .modal .close-x:hover { background: #f1ebe2; color: var(--text); }
+    /* Manage list rows */
+    .manage-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: #fff; margin-bottom: 8px; }
+    .manage-row .meta { display: flex; gap: 8px; align-items: center; }
+    .chip { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 20px; padding: 0 6px; border-radius: 10px; font-size: 12px; font-weight: 700; border: 1px solid var(--border); background: var(--chip-bg); }
 
     /* Student color chips (deterministic palette) */
     .swatch-0 { background: #D8C3A5; }
@@ -281,7 +295,7 @@
         <button class="icon-btn danger" id="btnClear" title="Clear all times">Clear Times</button>
         <button class="icon-btn primary" id="btnPDF" title="Export PDF (Alt+P)">PDF</button>
         <button class="icon-btn" id="btnDownload" title="Download single-file HTML">Download</button>
-        <button class="icon-btn" id="btnAddStudent" title="Add a student">Add Student</button>
+        <button class="icon-btn" id="btnManageStudents" title="Manage students">Manage Students</button>
       </div>
     </header>
 
@@ -322,11 +336,12 @@
     </footer>
   </div>
 
-  <!-- Modal: Add/Edit Student -->
-  <div class="modal-overlay" id="studentModal">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="studentModalTitle">
-      <h3 id="studentModalTitle">Add Student</h3>
-      <div class="row">
+  <!-- Modal: Manage Students (includes Add) -->
+  <div class="modal-overlay" id="manageStudentsModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="manageStudentsTitle">
+      <button class="close-x" id="manageStudentsCloseX" aria-label="Close">×</button>
+      <h3 id="manageStudentsTitle">Manage Students</h3>
+      <div class="row" style="margin-bottom: 8px;">
         <div>
           <label for="studentName">Full name</label>
           <input type="text" id="studentName" placeholder="e.g., Jane Doe" />
@@ -340,12 +355,19 @@
           </select>
         </div>
       </div>
-      <div class="actions">
-        <button class="btn" id="studentCancel">Cancel</button>
-        <button class="btn primary" id="studentSave">Save</button>
+      <div class="actions" style="justify-content: space-between;">
+        <div style="flex: 1; text-align: left; color: var(--muted-text); font-size: 12px;">Add a new student using the form, or delete existing ones below.</div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn primary" id="studentSave" disabled>Add Student</button>
+        </div>
+      </div>
+      <div id="manageStudentsList" role="list" aria-label="Students list" style="max-height: 50vh; overflow: auto; margin-top: 12px;">
+        <!-- Filled dynamically -->
       </div>
     </div>
   </div>
+
+  
 
   <!-- Embedded data bootstrap -->
   <script id="embedded-data" type="application/json">
@@ -457,13 +479,19 @@
           };
         },
         load() {
-          // 1) Embedded JSON
+          // 1) App state cache (prefer user-saved local state)
+          const appState = parseJSONSafe(localStorage.getItem(STORAGE_KEYS.appState));
+          if (appState && typeof appState === 'object') {
+            this.state = appState;
+            return this.state;
+          }
+          // 2) Embedded JSON (used primarily for exported single-file HTML)
           const embedded = this.getEmbedded();
           if (embedded && typeof embedded === 'object') {
             this.state = embedded;
             return this.state;
           }
-          // 2) Hybrid/localStorage legacy
+          // 3) Hybrid/localStorage legacy
           const hybrid = parseJSONSafe(localStorage.getItem(STORAGE_KEYS.hybrid));
           if (hybrid && hybrid.trackedState) {
             this.state = {
@@ -479,12 +507,6 @@
           const legacyPeople = parseJSONSafe(localStorage.getItem(STORAGE_KEYS.legacyPeople));
           if (legacySchedule || legacyPeople) {
             this.state = this.migrateLegacy(legacySchedule, legacyPeople);
-            return this.state;
-          }
-          // 3) App state cache
-          const appState = parseJSONSafe(localStorage.getItem(STORAGE_KEYS.appState));
-          if (appState && typeof appState === 'object') {
-            this.state = appState;
             return this.state;
           }
           // 4) Defaults
@@ -518,21 +540,39 @@
           document.getElementById('btnClear').addEventListener('click', window.clearTimes);
           document.getElementById('btnPDF').addEventListener('click', window.exportToPDF);
           document.getElementById('btnDownload').addEventListener('click', window.exportSchedule);
-          document.getElementById('btnAddStudent').addEventListener('click', () => this.openStudentModal());
+          document.getElementById('btnManageStudents').addEventListener('click', () => this.openManageStudentsModal());
 
-          document.getElementById('studentCancel').addEventListener('click', () => this.closeStudentModal());
           document.getElementById('studentSave').addEventListener('click', window.addStudentFromModal);
-
-          // Close modal on overlay click
-          document.getElementById('studentModal').addEventListener('click', (e) => {
-            if (e.target && e.target.id === 'studentModal') this.closeStudentModal();
+          // Submit manage modal with Enter from any input/select
+          const manageModal = document.getElementById('manageStudentsModal');
+          manageModal.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+              const saveBtn = document.getElementById('studentSave');
+              if (saveBtn && !saveBtn.disabled) {
+                e.preventDefault();
+                window.addStudentFromModal();
+              }
+            }
           });
-          // Close modal on Escape
+          // Enable/disable Add Student based on name input
+          const nameInput = document.getElementById('studentName');
+          const saveBtn = document.getElementById('studentSave');
+          if (nameInput && saveBtn) {
+            nameInput.addEventListener('input', () => {
+              const hasName = (nameInput.value || '').trim().length > 0;
+              saveBtn.disabled = !hasName;
+            });
+          }
+
+          // Close manage modal on overlay click
+          document.getElementById('manageStudentsModal').addEventListener('click', (e) => {
+            if (e.target && e.target.id === 'manageStudentsModal') this.closeManageStudentsModal();
+          });
           window.addEventListener('keydown', (e) => {
-            const modal = document.getElementById('studentModal');
+            const modal = document.getElementById('manageStudentsModal');
             if (e.key === 'Escape' && modal && modal.style.display === 'flex') {
               e.preventDefault();
-              this.closeStudentModal();
+              this.closeManageStudentsModal();
             }
           });
 
@@ -543,6 +583,9 @@
               window.exportToPDF();
             }
           });
+
+          // Manage modal close X
+          document.getElementById('manageStudentsCloseX').addEventListener('click', () => this.closeManageStudentsModal());
         },
         renderGutters() {
           const left = document.getElementById('leftGutter');
@@ -868,14 +911,107 @@
           });
 
         },
-        openStudentModal() {
-          document.getElementById('studentName').value = '';
-          document.getElementById('studentRole').value = 'PA';
-          document.getElementById('studentModal').style.display = 'flex';
-          setTimeout(() => document.getElementById('studentName').focus(), 0);
+        openManageStudentsModal() {
+          // Render list
+          const list = document.getElementById('manageStudentsList');
+          list.innerHTML = '';
+          const students = (DataManager.state && DataManager.state.students) || [];
+          students.forEach((s) => {
+            const row = document.createElement('div');
+            row.className = 'manage-row';
+            const meta = document.createElement('div');
+            meta.className = 'meta';
+            const chip = document.createElement('div');
+            chip.className = `chip swatch-${s.colorIndex ?? 0}`;
+            chip.textContent = s.code || '?';
+            chip.title = `${s.name}`;
+            const name = document.createElement('div');
+            name.textContent = `${s.name} ${s.role ? '(' + s.role + ')' : ''}`;
+            meta.appendChild(chip);
+            meta.appendChild(name);
+            const actions = document.createElement('div');
+            // Edit button
+            const edit = document.createElement('button');
+            edit.className = 'btn';
+            edit.textContent = 'Edit';
+            edit.setAttribute('aria-label', `Edit ${s.name}`);
+            edit.addEventListener('click', () => {
+              // Replace meta with editable inputs
+              meta.innerHTML = '';
+              const chipEdit = document.createElement('div');
+              chipEdit.className = `chip swatch-${s.colorIndex ?? 0}`;
+              chipEdit.textContent = s.code || '?';
+              chipEdit.title = `${s.name}`;
+              const nameInput = document.createElement('input');
+              nameInput.type = 'text';
+              nameInput.value = s.name;
+              nameInput.setAttribute('aria-label', 'Full name');
+              nameInput.style.minWidth = '180px';
+              const roleSelect = document.createElement('select');
+              roleSelect.innerHTML = '<option value="PA">PA</option><option value="WS">WS</option><option value="GA">GA</option>';
+              roleSelect.value = s.role || 'PA';
+              meta.appendChild(chipEdit);
+              meta.appendChild(nameInput);
+              meta.appendChild(roleSelect);
+              // Swap actions to Save/Cancel/Delete
+              actions.innerHTML = '';
+              const save = document.createElement('button');
+              save.className = 'btn primary';
+              save.textContent = 'Save';
+              save.addEventListener('click', () => {
+                const newName = (nameInput.value || '').trim();
+                if (!newName) { alert('Please enter a name.'); nameInput.focus(); return; }
+                const newRole = roleSelect.value;
+                // Update student object
+                s.name = newName;
+                s.role = newRole;
+                s.code = newName.split(/\s+/).map(p=>p[0]).join('').slice(0,3).toUpperCase();
+                DataManager.save();
+                // Refresh UI
+                UI.renderWeek(DataManager.state.students || []);
+                UI.renderTotals();
+                UI.openManageStudentsModal();
+              });
+              const cancel = document.createElement('button');
+              cancel.className = 'btn';
+              cancel.textContent = 'Cancel';
+              cancel.addEventListener('click', () => UI.openManageStudentsModal());
+              const delInline = document.createElement('button');
+              delInline.className = 'btn danger';
+              delInline.textContent = 'Delete';
+              delInline.setAttribute('aria-label', `Delete ${s.name}`);
+              delInline.addEventListener('click', () => window.removeStudent(s.id));
+              actions.appendChild(save);
+              actions.appendChild(cancel);
+              actions.appendChild(delInline);
+              // Enter to save
+              nameInput.addEventListener('keydown', (evt) => { if (evt.key === 'Enter') save.click(); });
+              roleSelect.addEventListener('keydown', (evt) => { if (evt.key === 'Enter') save.click(); });
+              nameInput.focus();
+            });
+            const del = document.createElement('button');
+            del.className = 'btn danger';
+            del.textContent = 'Delete';
+            del.setAttribute('aria-label', `Delete ${s.name}`);
+            del.addEventListener('click', () => window.removeStudent(s.id));
+            actions.appendChild(edit);
+            actions.appendChild(del);
+            row.appendChild(meta);
+            row.appendChild(actions);
+            list.appendChild(row);
+          });
+          // Reset add form
+          const nameInput = document.getElementById('studentName');
+          const roleSelect = document.getElementById('studentRole');
+          const saveBtn = document.getElementById('studentSave');
+          if (nameInput) nameInput.value = '';
+          if (roleSelect) roleSelect.value = 'PA';
+          if (saveBtn) saveBtn.disabled = true;
+          document.getElementById('manageStudentsModal').style.display = 'flex';
+          setTimeout(() => nameInput && nameInput.focus(), 0);
         },
-        closeStudentModal() {
-          document.getElementById('studentModal').style.display = 'none';
+        closeManageStudentsModal() {
+          document.getElementById('manageStudentsModal').style.display = 'none';
         }
       };
 
@@ -1088,8 +1224,30 @@
         // Re-render grid and totals with new student
         UI.renderWeek(DataManager.state.students);
         UI.renderTotals();
-        // Close modal
-        document.getElementById('studentModal').style.display = 'none';
+        // Refresh the manage list and reset form, keep modal open for multiple adds
+        UI.openManageStudentsModal();
+      };
+
+      window.removeStudent = function removeStudent(studentId) {
+        if (!studentId) return;
+        const students = DataManager.state && DataManager.state.students ? DataManager.state.students : [];
+        const target = students.find(s => String(s.id) === String(studentId));
+        const name = target ? target.name : 'this student';
+        const ok = confirm(`Remove ${name}? This will also clear all of their scheduled times.`);
+        if (!ok) return;
+        // Remove student
+        DataManager.state.students = students.filter(s => String(s.id) !== String(studentId));
+        // Purge schedule assignments
+        const sched = DataManager.state.schedule || {};
+        Object.keys(sched).forEach(k => {
+          const parts = k.split('|');
+          if (parts[2] === String(studentId)) delete sched[k];
+        });
+        DataManager.save();
+        // Refresh UI and manage list
+        UI.renderWeek(DataManager.state.students || []);
+        UI.renderTotals();
+        UI.openManageStudentsModal();
       };
 
       // Boot
