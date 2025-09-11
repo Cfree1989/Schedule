@@ -469,3 +469,63 @@ Priority order:
 - Populate sections with cited snippets using the prescribed citation format
 - Verify references and links; ensure document is navigable and concise
 
+
+## Planner — Per‑day Student Reordering (SortableJS)
+
+### Background & Motivation
+- Requirement: Reorder student columns per day via drag‑and‑drop; order must persist across reloads and be included in exported single‑file HTML. Target file: `student-schedule-app.html`. Library: SortableJS (CDN UMD).
+
+### Key Challenges & Analysis
+- Column order currently derives from the global `students` array. We need a per‑day order without mutating the global array.
+- Rendering must respect the per‑day order for both the day legend chips and the grid cells, while all assignment logic continues to key off `studentId` (unchanged schedule map keys).
+- Persistence must integrate with existing `DataManager` save/export logic and default/migration paths.
+- Student add/remove flows must keep `orderPerDay` consistent.
+
+### Data Model Changes
+- Add `orderPerDay` to app state:
+  - Shape: `{ '0': string[], '1': string[], '2': string[], '3': string[], '4': string[] }` where keys are day indices (Mon=0..Fri=4) and values are ordered arrays of `studentId`.
+  - Migration: On load, if missing, initialize each day’s array from the current `students.map(s=>s.id)`.
+  - Add to `defaults()` and to embedded bootstrap JSON when exporting.
+  - On add: append new `id` to each day’s array. On remove: splice out the `id` from each day’s array.
+
+### Rendering Changes
+- In `UI.renderWeek(students)`, for each day `di`, compute `orderedStudentsForDay` by mapping `orderPerDay[di]` to student objects (filtering out stale ids) and then appending any remaining students (fallback) to stay resilient.
+- Use `orderedStudentsForDay` to build: (1) legend chips (set `data-id` to `student.id`), (2) per‑row cells so column indices line up with legend.
+
+### Drag‑and‑Drop (SortableJS)
+- Include SortableJS CDN (e.g., `https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js`).
+- Initialize a Sortable instance on each day’s legend container:
+  - Options: `{ animation: 150, draggable: '.legend-chip', direction: 'horizontal', dataIdAttr: 'data-id', group: { name: 'day-<di>', pull: false, put: false } }`.
+  - `onEnd`: `orderPerDay[di] = sortable.toArray(); DataManager.save(); UI.renderWeek(DataManager.state.students);`.
+- Prevent cross‑day dragging by unique `group` names with `pull:false, put:false`.
+
+### Accessibility & UX
+- Add descriptive `aria-label` on legend containers, e.g., "Reorder students for Monday".
+- Keep keyboard interactions unchanged for the grid; DnD is pointer‑only enhancement.
+- Provide a short help tooltip/title on legend chips: "Drag to reorder column".
+
+### Success Criteria
+- User can drag chips in a day header to reorder columns for that day; the grid cells reflow to match immediately.
+- Order persists after page reload and in the exported HTML (open export and observe the same order).
+- Adding a student places them at the end for all days; removing a student removes them from all day orders and clears their assignments (existing behavior preserved).
+- Cross‑day dragging is not allowed.
+
+### Risks & Mitigations
+- Library load race: Check `window.Sortable` before init; log/skip gracefully if missing.
+- Stale ids after student deletion: Filter `orderPerDay[di]` against current `students` on render.
+- Performance: Full `renderWeek` after each drop is acceptable given app size; revisit if needed.
+
+### High‑level Task Breakdown
+1. Add SortableJS CDN to `student-schedule-app.html` (after other libraries).
+2. Introduce `orderPerDay` in `DataManager` state; defaults + migration on load.
+3. Update `UI.renderWeek` to compute and use per‑day order for legend and cells.
+4. Initialize Sortable on each legend; onEnd update `orderPerDay[di]`, save, and re‑render.
+5. Sync `orderPerDay` on student add/remove.
+6. Persist `orderPerDay` in export; include in embedded JSON block.
+7. A11y/help text and ensure cross‑day dragging is disabled.
+8. Manual QA: drag per day, reload, export/open, add/remove student, verify consistency.
+
+### References (Context7 / SortableJS)
+- Core options & events: `Sortable(el, { animation, draggable, dataIdAttr, onEnd })`.
+- Persistence pattern with `toArray()`/`dataIdAttr` analogous to Sortable store example.
+

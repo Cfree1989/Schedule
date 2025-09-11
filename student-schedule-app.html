@@ -547,7 +547,14 @@
       {"id":"stu-4","name":"Sam Lee","code":"SL","role":"PA","colorIndex":3},
       {"id":"stu-5","name":"Casey Ray","code":"CR","role":"WS","colorIndex":4}
     ],
-    "schedule": {}
+    "schedule": {},
+    "orderPerDay": {
+      "0": ["stu-1","stu-2","stu-3","stu-4","stu-5"],
+      "1": ["stu-1","stu-2","stu-3","stu-4","stu-5"],
+      "2": ["stu-1","stu-2","stu-3","stu-4","stu-5"],
+      "3": ["stu-1","stu-2","stu-3","stu-4","stu-5"],
+      "4": ["stu-1","stu-2","stu-3","stu-4","stu-5"]
+    }
   }
   </script>
 
@@ -555,6 +562,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 
   <script>
     (function() {
@@ -602,6 +610,24 @@
             grand += row.total;
           }
           return { perStudent, dailyTotals, grand };
+        },
+        ensureOrderPerDay(studentsArr) {
+          try {
+            const ids = Array.isArray(studentsArr) ? studentsArr.map(s => String(s.id)) : [];
+            if (!this.state) return;
+            if (!this.state.orderPerDay || typeof this.state.orderPerDay !== 'object') {
+              this.state.orderPerDay = {};
+            }
+            for (let di = 0; di < 5; di++) {
+              const key = String(di);
+              const existing = Array.isArray(this.state.orderPerDay[key]) ? this.state.orderPerDay[key].map(String) : [];
+              const filtered = existing.filter(id => ids.includes(id));
+              const missing = ids.filter(id => !filtered.includes(id));
+              this.state.orderPerDay[key] = [...filtered, ...missing];
+            }
+          } catch (e) {
+            console.warn('ensureOrderPerDay failed', e);
+          }
         },
         getEmbedded() {
           const el = document.getElementById('embedded-data');
@@ -651,12 +677,14 @@
           const appState = parseJSONSafe(localStorage.getItem(STORAGE_KEYS.appState));
           if (appState && typeof appState === 'object') {
             this.state = appState;
+            this.ensureOrderPerDay(this.state.students || []);
             return this.state;
           }
           // 2) Embedded JSON (used primarily for exported single-file HTML)
           const embedded = this.getEmbedded();
           if (embedded && typeof embedded === 'object') {
             this.state = embedded;
+            this.ensureOrderPerDay(this.state.students || []);
             return this.state;
           }
           // 3) Hybrid/localStorage legacy
@@ -669,16 +697,19 @@
               students: Array.isArray(hybrid.students) ? hybrid.students : [],
               schedule: hybrid.trackedState || {}
             };
+            this.ensureOrderPerDay(this.state.students || []);
             return this.state;
           }
           const legacySchedule = parseJSONSafe(localStorage.getItem(STORAGE_KEYS.legacySchedule));
           const legacyPeople = parseJSONSafe(localStorage.getItem(STORAGE_KEYS.legacyPeople));
           if (legacySchedule || legacyPeople) {
             this.state = this.migrateLegacy(legacySchedule, legacyPeople);
+            this.ensureOrderPerDay(this.state.students || []);
             return this.state;
           }
           // 4) Defaults
           this.state = this.defaults();
+          this.ensureOrderPerDay(this.state.students || []);
           return this.state;
         },
         save() {
@@ -916,6 +947,8 @@
           }
           const schedule = (DataManager.state && DataManager.state.schedule) || {};
           const makeKey = (di, si, sid) => `${di}|${si}|${sid}`;
+          const orderPerDay = (DataManager.state && DataManager.state.orderPerDay) || {};
+          const studentsById = new Map((students || []).map(s => [String(s.id), s]));
           // Roving tabindex: only one cell should be tabbable at a time
           let initialTabIndexSet = false;
           // Painting state shared across cells for current render
@@ -937,17 +970,56 @@
             // Legend
             const legend = document.createElement('div');
             legend.className = 'legend-row';
-            const columns = Math.max(1, students.length);
+            legend.setAttribute('aria-label', `Reorder students for ${day}`);
+            legend.title = `Drag to reorder students for ${day}`;
+            // Build ordered list of students for this day
+            const orderKey = String(di);
+            const orderIds = Array.isArray(orderPerDay[orderKey]) ? orderPerDay[orderKey].map(String) : [];
+            const ordered = [];
+            for (const id of orderIds) {
+              const s = studentsById.get(id);
+              if (s) ordered.push(s);
+            }
+            // Append any students not present in order array (resilience)
+            for (const s of (students || [])) {
+              if (!orderIds.includes(String(s.id))) ordered.push(s);
+            }
+            const columns = Math.max(1, ordered.length);
             const legendChips = [];
-            students.forEach((s, chipIdx) => {
+            ordered.forEach((s, chipIdx) => {
               const chip = document.createElement('div');
               chip.className = `legend-chip swatch-${s.colorIndex ?? 0}`;
               chip.textContent = s.code || '?';
               chip.title = `${s.name} (${s.role || ''})`;
               chip.dataset.colIndex = String(chipIdx);
+              chip.setAttribute('data-id', String(s.id));
               legend.appendChild(chip);
               legendChips.push(chip);
             });
+            // Initialize Sortable for this day's legend if available
+            try {
+              if (window.Sortable && typeof window.Sortable === 'function') {
+                // eslint-disable-next-line no-new
+                new window.Sortable(legend, {
+                  animation: 150,
+                  draggable: '.legend-chip',
+                  dataIdAttr: 'data-id',
+                  direction: 'horizontal',
+                  group: { name: 'day-' + di, pull: false, put: false },
+                  onEnd: function() {
+                    try {
+                      const arr = this.toArray();
+                      if (DataManager.state) {
+                        if (!DataManager.state.orderPerDay) DataManager.state.orderPerDay = {};
+                        DataManager.state.orderPerDay[String(di)] = arr;
+                        DataManager.save();
+                        UI.renderWeek(DataManager.state.students || []);
+                      }
+                    } catch (e) { console.warn('sortable onEnd failed', e); }
+                  }
+                });
+              }
+            } catch (e) { console.warn('Sortable init failed for day', di, e); }
             block.appendChild(legend);
             // Rows with interactive cells
             const rows = document.createElement('div');
@@ -962,7 +1034,7 @@
                 cell.setAttribute('role', 'gridcell');
                 // Roving tabindex: first created cell is tabbable; others are programmatically focusable only
                 if (!initialTabIndexSet) { cell.tabIndex = 0; initialTabIndexSet = true; } else { cell.tabIndex = -1; }
-                const student = students[c];
+                const student = ordered[c];
                 // Always annotate navigational indices for keyboard movement
                 cell.dataset.dayIndex = String(di);
                 cell.dataset.slotIndex = String(si);
@@ -1574,7 +1646,8 @@
               theme: DataManager.state.settings?.theme || 'spring'
             },
             students: DataManager.state.students,
-            schedule: DataManager.state.schedule
+            schedule: DataManager.state.schedule,
+            orderPerDay: DataManager.state.orderPerDay
           });
         }
         const html = '<!DOCTYPE html>\n' + serializer.serializeToString(cloneDoc);
@@ -1598,6 +1671,15 @@
         const colorIndex = (DataManager.state.students.length) % 15;
         const id = 'stu-' + (Date.now());
         DataManager.state.students.push({ id, name, code, role, colorIndex });
+        // Append new id to end of each day's order
+        try {
+          if (!DataManager.state.orderPerDay) DataManager.state.orderPerDay = {};
+          for (let di = 0; di < 5; di++) {
+            const key = String(di);
+            if (!Array.isArray(DataManager.state.orderPerDay[key])) DataManager.state.orderPerDay[key] = [];
+            DataManager.state.orderPerDay[key].push(String(id));
+          }
+        } catch (e) { console.warn('orderPerDay append failed', e); }
         DataManager.save();
         // Re-render grid and totals with new student
         UI.renderWeek(DataManager.state.students);
@@ -1621,6 +1703,17 @@
           const parts = k.split('|');
           if (parts[2] === String(studentId)) delete sched[k];
         });
+        // Remove from orderPerDay arrays
+        try {
+          if (DataManager.state.orderPerDay && typeof DataManager.state.orderPerDay === 'object') {
+            for (let di = 0; di < 5; di++) {
+              const key = String(di);
+              if (Array.isArray(DataManager.state.orderPerDay[key])) {
+                DataManager.state.orderPerDay[key] = DataManager.state.orderPerDay[key].filter(id => String(id) !== String(studentId));
+              }
+            }
+          }
+        } catch (e) { console.warn('orderPerDay removal failed', e); }
         DataManager.save();
         // Refresh UI and manage list
         UI.renderWeek(DataManager.state.students || []);
