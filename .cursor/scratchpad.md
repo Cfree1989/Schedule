@@ -152,6 +152,15 @@ Priority order:
 
 ## Executor's Feedback or Assistance Requests
 —
+ 
+### Progress Note — Hours Summary Sorting
+- Implemented Option 1 (vanilla header sorting) in `student-schedule-app.html`.
+- Added persistent `settings.totalsSort`, header click/keyboard handlers with indicators and `aria-sort`.
+- Moved DAILY TOTALS row to `<tfoot>` so it never participates in sorting.
+- PDF export now uses the same sorted order as the UI.
+
+### Lessons (added)
+- **Totals row in `<tfoot>`**: Keeping the summary row in `<tfoot>` guarantees it remains pinned and excluded from sorting, simplifying logic and improving accessibility.
 
 ## Lessons
 - **Load precedence for embedded apps**: Prefer previously saved `appState` from `localStorage` over embedded JSON so that newly added students persist across reloads until the user explicitly exports a new single-file.
@@ -529,3 +538,68 @@ Priority order:
 - Core options & events: `Sortable(el, { animation, draggable, dataIdAttr, onEnd })`.
 - Persistence pattern with `toArray()`/`dataIdAttr` analogous to Sortable store example.
 
+
+## Planner — Hours Summary Sorting Options
+
+### Context
+- The Weekly Hours Summary table (`#totalsTable`) is rendered in `UI.renderTotals()` with per‑student rows in `<tbody>` and a trailing "DAILY TOTALS" row currently appended to `<tbody>`. We want user‑controlled sorting by student name or any hours column without breaking totals or PDF export.
+
+### Options (from simplest to heavier)
+1) Vanilla clickable headers (no new library) — RECOMMENDED
+   - Behavior: Clicking a header sorts rows by that column; subsequent clicks toggle asc/desc. Columns Mon–Fri/Total use numeric sort; Student uses locale‑aware alpha sort.
+   - Implementation:
+     - Move the "DAILY TOTALS" row into `<tfoot>` so it never participates in sorting.
+     - Maintain `DataManager.state.settings.totalsSort = { column: 'name'|'total'|0..4, dir: 'asc'|'desc' }`.
+     - Sort `perStudent` in JS before building `<tbody>`; render a small ▲▼ indicator in `<th>` for the active column.
+     - Persist the sort state; reapply on load; mirror sort in PDF export so the report matches UI.
+   - Pros: Zero new deps; minimal code; fully accessible and fast.
+   - Cons: No multi‑column sort; limited to our use cases (which is fine).
+
+2) Toolbar dropdown sort (no library)
+   - Behavior: A small select above the table (e.g., "Sort by: Total ↓ / Total ↑ / Student A→Z / Mon ↓ ...").
+   - Implementation: Same sorting function as Option 1, triggered by dropdown change; also updates header indicator.
+   - Pros: Explicit and discoverable; works well on touch.
+   - Cons: Extra UI control; slightly more UI chrome.
+
+3) Simple‑DataTables (Context7: `/fiduswriter/simple-datatables`) — light dependency
+   - Behavior: Click‑to‑sort headers with built‑in numeric sorting and configurable `sortSequence`.
+   - Implementation: Initialize on `#totalsTable`; configure numeric columns via `columns: [{ select: [1,2,3,4,5,6], type: 'number' }]`; keep totals in `<tfoot>`; optionally disable sorting on specific columns. Listen to `datatable.sort` to persist state.
+   - Pros: Very small and framework‑agnostic; adds search/pagination if ever needed.
+   - Cons: Adds a dependency; DOM managed by the plugin (slightly different rendering lifecycle).
+
+4) Grid.js (Context7: `/websites/gridjs_io`) — component wrapper approach
+   - Behavior: Replace the manual table with a Grid.js instance (`sort: true`), with optional custom comparators.
+   - Pros: Rich features (search, pagination, custom renderers).
+   - Cons: Heavier refactor of our current render; larger dependency than we need.
+
+5) Manual drag‑reorder (SortableJS rows)
+   - Behavior: Let users drag student rows to reorder manually; persist an explicit order separate from value sort.
+   - Pros: Useful when you want a curated ordering regardless of hours.
+   - Cons: Does not sort by values; different intent than "sorting"; potential conflict with header sorting unless we design a clear precedence.
+
+### Recommendation
+- Implement Option 1 now (vanilla header sorting), optionally add Option 2 (dropdown) for touch discoverability. Defer Option 3 unless we later want search/pagination. Consider Option 5 only if a curated order is a requirement.
+
+### Success Criteria
+- Clicking any header sorts rows correctly; clicking again reverses order; indicator shows direction.
+- "DAILY TOTALS" remains pinned and unsorted.
+- Sort choice persists across reloads and is respected by PDF export.
+- Numeric columns sort numerically (not lexicographically); Student uses locale‑aware collation.
+- Keyboard and screen reader users can operate the sort.
+
+### High‑level Task Breakdown (for Option 1)
+1) Move totals row to `<tfoot>` in `UI.renderTotals()`; keep `<tbody>` for per‑student rows only.
+2) Add `settings.totalsSort` to state (with defaults), load/persist via `DataManager.save()`.
+3) Create `sortPerStudent(perStudent, { column, dir })` using `Intl.Collator` for name and numeric compare for hours.
+4) Render header sort indicators; attach click handlers on `#totalsTable thead th` to toggle/update `settings.totalsSort` and re‑render.
+5) Update PDF export to consume the same sorted order when building Page 2.
+6) A11y: Make headers buttons with `aria-sort` updates and keyboard activation.
+
+### Risks & Mitigations
+- Ties causing jitter on repeated renders → Use stable sort; secondary key on `name`.
+- "DAILY TOTALS" participation in sort → Use `<tfoot>` to guarantee exclusion.
+- PDF/UI mismatch → Drive both from the same `sortPerStudent()` function.
+
+### References (Context7)
+- Simple‑DataTables: column sorting and events (`columns` with `type: 'number'`, `sortSequence`, `datatable.sort`).
+- Grid.js: `sort: true`, column `sort: { compare }` for custom logic.

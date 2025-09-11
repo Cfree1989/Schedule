@@ -476,6 +476,7 @@
           <thead>
             <tr>
               <th>Student</th>
+              <th>Role</th>
               <th>Mon</th>
               <th>Tue</th>
               <th>Wed</th>
@@ -485,8 +486,9 @@
             </tr>
           </thead>
           <tbody>
-            <tr><td colspan="7" style="text-align:center;color:var(--muted-text)">Totals will appear after grid is implemented</td></tr>
+            <tr><td colspan="8" style="text-align:center;color:var(--muted-text)">Totals will appear after grid is implemented</td></tr>
           </tbody>
+          <tfoot></tfoot>
         </table>
         <div id="totalsHelp" class="visually-hidden">Shows per-student daily and weekly hours.</div>
       </section>
@@ -596,7 +598,7 @@
           const dailyTotals = [0,0,0,0,0];
           let grand = 0;
           for (let s of students) {
-            const row = { name: `${s.name}${s.role ? ' ' + s.role : ''}`.trim(), days: [0,0,0,0,0], total: 0 };
+            const row = { name: (s.name || '').trim(), role: s.role || '', days: [0,0,0,0,0], total: 0 };
             for (let di = 0; di < 5; di++) {
               let day = 0;
               for (let si = 0; si < 16; si++) {
@@ -610,6 +612,22 @@
             grand += row.total;
           }
           return { perStudent, dailyTotals, grand };
+        },
+        getTotalsSort() {
+          try {
+            const s = (this.state && this.state.settings) || {};
+            if (!s.totalsSort || typeof s.totalsSort !== 'object') {
+              s.totalsSort = { column: 'name', dir: 'asc' };
+              if (this.state) { if (!this.state.settings) this.state.settings = {}; this.state.settings.totalsSort = s.totalsSort; }
+            }
+            return s.totalsSort;
+          } catch (e) { return { column: 'name', dir: 'asc' }; }
+        },
+        setTotalsSort(next) {
+          if (!this.state) return;
+          if (!this.state.settings) this.state.settings = {};
+          this.state.settings.totalsSort = next;
+          this.save();
         },
         ensureOrderPerDay(studentsArr) {
           try {
@@ -871,16 +889,78 @@
         },
         // Compute and render totals table from state
         renderTotals() {
-          const tbody = document.querySelector('#totalsTable tbody');
-          if (!tbody) return;
+          const table = document.getElementById('totalsTable');
+          const tbody = table && table.querySelector('tbody');
+          const tfoot = table && table.querySelector('tfoot');
+          const thead = table && table.querySelector('thead');
+          if (!tbody || !tfoot || !thead) return;
           const { perStudent, dailyTotals, grand } = DataManager.computeTotals(DataManager.state);
+
+          // Apply sorting
+          const sort = DataManager.getTotalsSort();
+          const collator = new Intl.Collator(undefined, { numeric: false, sensitivity: 'base' });
+          const stableKey = (idx) => idx; // stable tiebreaker using original index
+          const sorted = perStudent
+            .map((r, i) => ({ r, i }))
+            .sort((a, b) => {
+              let cmp = 0;
+              if (sort.column === 'name') cmp = collator.compare(a.r.name, b.r.name);
+              else if (sort.column === 'role') cmp = collator.compare(a.r.role, b.r.role);
+              else if (sort.column === 'total') cmp = (a.r.total - b.r.total);
+              else if (typeof sort.column === 'number') {
+                const di = Math.max(0, Math.min(4, sort.column)); // 0..4 for Mon..Fri
+                cmp = (a.r.days[di] - b.r.days[di]);
+              }
+              if (cmp === 0) cmp = collator.compare(a.r.name, b.r.name) || (stableKey(a.i) - stableKey(b.i));
+              return sort.dir === 'desc' ? -cmp : cmp;
+            })
+            .map(x => x.r);
+
+          // Render header indicators and aria-sort
+          const ths = Array.from(thead.querySelectorAll('th'));
+          ths.forEach((th, idx) => {
+            th.setAttribute('role', 'button');
+            th.tabIndex = 0;
+            th.removeAttribute('aria-sort');
+            // Reset label to a stable base, then append single arrow to Name/Role/Total
+            if (!th.dataset.baseLabel) {
+              th.dataset.baseLabel = (th.textContent || '').replace(/[\s▲▼]+$/g, '').trim();
+            }
+            const base = th.dataset.baseLabel;
+            // Column indices: 0=Student,1=Role, 2..6=Mon..Fri (0..4), 7=Total
+            let colKey;
+            if (idx === 0) colKey = 'name';
+            else if (idx === 1) colKey = 'role';
+            else if (idx === 7) colKey = 'total';
+            else colKey = idx - 2; // 0..4 for Mon..Fri
+            const isActive = (sort.column === colKey);
+            let label = base;
+            // Only show arrow on sortable columns (Name, Role, Total)
+            if (idx === 0 || idx === 1 || idx === 7) {
+              if (isActive) {
+                label = base + (sort.dir === 'desc' ? ' ▼' : ' ▲');
+              } else {
+                label = base + ' ▲'; // default arrow for inactive sortable columns
+              }
+            }
+            th.textContent = label;
+            if (isActive) {
+              th.setAttribute('aria-sort', sort.dir === 'desc' ? 'descending' : 'ascending');
+            } else {
+              th.removeAttribute('aria-sort');
+            }
+          });
+
+          // Fill body
           tbody.innerHTML = '';
-          // Per-student rows
-          perStudent.forEach((row) => {
+          sorted.forEach((row) => {
             const tr = document.createElement('tr');
             const nameCell = document.createElement('td');
             nameCell.textContent = row.name;
             tr.appendChild(nameCell);
+            const roleCell = document.createElement('td');
+            roleCell.textContent = row.role || '';
+            tr.appendChild(roleCell);
             for (let di = 0; di < 5; di++) {
               const td = document.createElement('td');
               td.textContent = row.days[di].toFixed(2);
@@ -891,12 +971,17 @@
             tr.appendChild(totalTd);
             tbody.appendChild(tr);
           });
-          // Daily totals row
+
+          // Daily totals row in tfoot (pinned)
+          tfoot.innerHTML = '';
           const totalRow = document.createElement('tr');
           totalRow.style.fontWeight = '700';
           const labelTd = document.createElement('td');
           labelTd.textContent = 'DAILY TOTALS';
           totalRow.appendChild(labelTd);
+          const roleSpacer = document.createElement('td');
+          roleSpacer.textContent = '';
+          totalRow.appendChild(roleSpacer);
           for (let di = 0; di < 5; di++) {
             const td = document.createElement('td');
             td.textContent = dailyTotals[di].toFixed(2);
@@ -905,7 +990,28 @@
           const grandTd = document.createElement('td');
           grandTd.textContent = grand.toFixed(2);
           totalRow.appendChild(grandTd);
-          tbody.appendChild(totalRow);
+          tfoot.appendChild(totalRow);
+
+          // Attach header click/keyboard handlers once
+          if (!table.dataset.sortHandlers) {
+            table.dataset.sortHandlers = '1';
+            ths.forEach((th, idx) => {
+              let colKey;
+              if (idx === 0) colKey = 'name';
+              else if (idx === 1) colKey = 'role';
+              else if (idx === 7) colKey = 'total';
+              else colKey = idx - 2;
+              const activate = () => {
+                const current = DataManager.getTotalsSort();
+                let dir = 'asc';
+                if (current.column === colKey) dir = (current.dir === 'asc' ? 'desc' : 'asc');
+                DataManager.setTotalsSort({ column: colKey, dir });
+                UI.renderTotals();
+              };
+              th.addEventListener('click', activate);
+              // No hotkeys requested; keep click-only activation
+            });
+          }
         },
         // Render full interactive week grid from state
         renderWeek(students) {
@@ -1534,7 +1640,25 @@
           // Build totals data from DataManager.state
           const head = ['Student','Mon','Tue','Wed','Thu','Fri','Total'];
           const { perStudent, dailyTotals, grand } = DataManager.computeTotals(window.__DataManager?.state);
-          const body = perStudent.map(r => [r.name, ...r.days.map(d=>d.toFixed(2)), r.total.toFixed(2)]);
+          // Apply same sorting as UI
+          const sort = DataManager.getTotalsSort();
+          const collator = new Intl.Collator(undefined, { numeric: false, sensitivity: 'base' });
+          const sortedForPdf = perStudent
+            .map((r, i) => ({ r, i }))
+            .sort((a, b) => {
+              let cmp = 0;
+              if (sort.column === 'name') cmp = collator.compare(a.r.name, b.r.name);
+              else if (sort.column === 'role') cmp = collator.compare(a.r.role, b.r.role);
+              else if (sort.column === 'total') cmp = (a.r.total - b.r.total);
+              else if (typeof sort.column === 'number') {
+                const di = Math.max(0, Math.min(4, sort.column));
+                cmp = (a.r.days[di] - b.r.days[di]);
+              }
+              if (cmp === 0) cmp = collator.compare(a.r.name, b.r.name) || (a.i - b.i);
+              return sort.dir === 'desc' ? -cmp : cmp;
+            })
+            .map(x => x.r);
+          const body = sortedForPdf.map(r => [r.name, r.role || '', ...r.days.map(d=>d.toFixed(2)), r.total.toFixed(2)]);
           const totalsRow = ['DAILY TOTALS', ...dailyTotals.map(d=>d.toFixed(2)), grand.toFixed(2)];
 
           // Optional parity check against UI totals table
@@ -1589,7 +1713,7 @@
           }
 
           doc.autoTable({
-            head: [head],
+            head: [['Student','Role','Mon','Tue','Wed','Thu','Fri','Total']],
             body,
             theme: 'grid',
             styles: { fontSize: 10, cellPadding: 4 },
