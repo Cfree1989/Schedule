@@ -340,6 +340,56 @@ Priority order:
 
 ---
 
+## Planner — Header Title Editing Options (Fall 2025)
+
+### Context
+- The previous Settings modal and its gear button were removed.
+- Requirement: Easily change the header text to include term/year (e.g., "Fall 2025").
+- Persistence: Must save to `DataManager.state.settings.headerTitle`, reflect immediately in the UI, and be included on export (already wired).
+
+### Options
+1) Inline editable header (contenteditable on title)
+   - UX: Click a small pencil or double‑click the header to edit in place; Enter saves, Esc cancels; clicking outside confirms.
+   - Pros: Fast, no navigation; minimal UI.
+   - Cons: Accidental edits possible; needs clear affordance/focus states.
+
+2) Small "Edit Title" popover next to theme selector (RECOMMENDED)
+   - UX: Add a tiny pencil/text button near the theme dropdown. Clicking opens a compact popover with a single text field prefilled with the current title and Save/Cancel.
+   - Pros: Very discoverable; avoids accidental edits; consistent with header actions; minimal footprint.
+   - Cons: Adds one small control to the header.
+
+3) Computed title from Season + Year controls
+   - UX: Keep title derived from selections: `STUDENT WORKER SCHEDULE | {Season} {Year}` with a new Year dropdown (e.g., 2024–2028) placed next to the theme selector.
+   - Pros: Always consistent; no free‑text typos; easy to update to the next term.
+   - Cons: Less flexible if a custom title is desired (e.g., program name or extra notes).
+
+4) Add a Title field inside the existing Manage Students modal
+   - UX: Add a small Settings section/row at the top of that modal with the header title field.
+   - Pros: Reuses existing modal framework; no new component.
+   - Cons: Poor discoverability for a header‑level option; extra clicks.
+
+### Recommendation
+- Implement Option 2 now (popover near theme selector). Option 3 can be a follow‑on enhancement (checkbox "Auto‑generate title from Season/Year" that disables the free‑text input when enabled).
+
+### Success Criteria
+- User can change the title to "Fall 2025" in ≤2 clicks.
+- New title displays immediately in the header.
+- Title persists across reloads (in localStorage) and is included in the exported single‑file HTML.
+- Fully keyboard accessible (focusable control, Enter submits, Esc cancels) and screen‑reader friendly (labels/ARIA).
+
+### High‑level Task Breakdown (if Option 2)
+1) Add a small "Edit Title" control next to the theme selector in the header toolbar.
+2) Create a lightweight popover with a labeled text input (prefilled with current title) and Save/Cancel actions.
+3) Add `UI.setHeaderTitle(newTitle)` helper to update DOM (`#headerTitle`), write to `DataManager.state.settings.headerTitle`, and persist via `DataManager.save()`.
+4) Wire events: open/close popover, Enter to save, Esc/click‑outside to cancel.
+5) A11y: proper labels, focus trapping/order in popover, and ARIA roles.
+6) QA: manual check across Chrome/Edge; verify export includes the updated `settings.headerTitle`.
+
+### Risks & Mitigations
+- Accidental edits (Option 1) → Prefer explicit popover control (Option 2).
+- Header crowding on small screens → Ensure the control collapses nicely with existing wrap; keep label minimal (icon with accessible label).
+
+
 # Planner — Schedule Masterplan (Outline for Approval)
 
 ## Goals, Audience, Scope

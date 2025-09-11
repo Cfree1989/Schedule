@@ -70,25 +70,6 @@
       --grid-bg: #fdf6f0;
     }
 
-    /* Winter Theme - Cool and Crisp */
-    [data-theme="winter"] {
-      --bg: #f8f9fa;
-      --surface: #ffffff;
-      --text: #212529;
-      --muted-text: #495057;
-      --border: #dee2e6;
-      --header-bg: #495057;
-      --header-text: #ffffff;
-      --accent: #6c757d;
-      --accent-2: #20c997;
-      --danger: #dc3545;
-      --focus: #0d6efd;
-      --chip-bg: #e9ecef;
-
-      --day-header-bg: #e9ecef;
-      --legend-bg: #f8f9fa;
-      --grid-bg: #ffffff;
-    }
 
     html, body {
       height: 100%;
@@ -164,13 +145,45 @@
       padding: 6px 10px;
       border-radius: 6px;
       font-size: 13px;
+      line-height: 1.2;
       cursor: pointer;
-      min-width: 100px;
+      display: inline-flex;
+      align-items: center;
+      width: auto;
+      min-width: 0;
     }
     .theme-selector:hover { background: rgba(255,255,255,0.16); }
     .theme-selector:focus { 
       outline: none; 
       box-shadow: 0 0 0 2px rgba(255,255,255,0.3);
+    }
+    /* Fix dropdown options visibility */
+    .theme-selector option {
+      background: var(--header-bg);
+      color: var(--header-text);
+    }
+
+    /* Auto-width wrapper for native select: shrink to selected option text */
+    .select-auto { position: relative; display: inline-block; }
+    /* Visible label sized by text; select overlays it but is invisible */
+    .select-auto .select-label {
+      display: inline-block;
+      white-space: nowrap;
+      padding: 6px 10px;
+      border: 1px solid rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      border-radius: 6px;
+      font-size: 13px;
+      line-height: 1.2;
+      pointer-events: none;
+    }
+    .select-auto select.theme-selector {
+      position: absolute;
+      inset: 0; /* cover the label */
+      width: 100%;
+      height: 100%;
+      opacity: 0; /* click-through for native interactions */
     }
 
 
@@ -412,24 +425,17 @@
     [data-theme="fall"] .swatch-13 { background: #FF5722; }
     [data-theme="fall"] .swatch-14 { background: #FF9800; }
 
-    /* Winter Theme Student Colors - 15 colors */
-    [data-theme="winter"] .swatch-0 { background: #90A4AE; }
-    [data-theme="winter"] .swatch-1 { background: #78909C; }
-    [data-theme="winter"] .swatch-2 { background: #607D8B; }
-    [data-theme="winter"] .swatch-3 { background: #20C997; }
-    [data-theme="winter"] .swatch-4 { background: #6C757D; }
-    [data-theme="winter"] .swatch-5 { background: #546E7A; }
-    [data-theme="winter"] .swatch-6 { background: #455A64; }
-    [data-theme="winter"] .swatch-7 { background: #37474F; }
-    [data-theme="winter"] .swatch-8 { background: #00ACC1; }
-    [data-theme="winter"] .swatch-9 { background: #495057; }
-    [data-theme="winter"] .swatch-10 { background: #424242; }
-    [data-theme="winter"] .swatch-11 { background: #263238; }
-    [data-theme="winter"] .swatch-12 { background: #212529; }
-    [data-theme="winter"] .swatch-13 { background: #17A2B8; }
-    [data-theme="winter"] .swatch-14 { background: #343A40; }
 
     .visually-hidden { position: absolute !important; height: 1px; width: 1px; overflow: hidden; clip: rect(1px, 1px, 1px, 1px); white-space: nowrap; }
+
+    /* Inline header edit affordance */
+    .header-title[contenteditable="true"] { 
+      outline: none; 
+      box-shadow: inset 0 0 0 2px var(--focus); 
+      background: rgba(255,255,255,0.1);
+      border-radius: 6px; 
+      padding: 2px 4px; 
+    }
   </style>
 </head>
 <body>
@@ -437,12 +443,14 @@
     <header class="app-header" role="banner">
       <div class="header-title" id="headerTitle" aria-live="polite">STUDENT WORKER SCHEDULE | 2024–2025</div>
       <div class="header-actions" role="toolbar" aria-label="Schedule actions">
-        <select class="theme-selector" id="themeSelector" title="Choose color theme" aria-label="Color theme">
-          <option value="spring">🌸 Spring</option>
-          <option value="summer">☀️ Summer</option>
-          <option value="fall">🍂 Fall</option>
-          <option value="winter">❄️ Winter</option>
-        </select>
+        <span class="select-auto" id="themeSelectWrap" data-label="Fall">
+          <select class="theme-selector" id="themeSelector" title="Choose color theme" aria-label="Color theme">
+            <option value="fall">🍂 Fall</option>
+            <option value="spring">🌸 Spring</option>
+            <option value="summer">☀️ Summer</option>
+          </select>
+          <span class="select-label" id="themeSelectLabel">🍂 Fall</span>
+        </span>
         <button class="icon-btn" id="btnSave" title="Quick Save (Ctrl+S)">Save</button>
         <button class="icon-btn danger" id="btnClear" title="Clear all times">Clear Times</button>
         <button class="icon-btn" id="btnManageStudents" title="Manage students">Manage Students</button>
@@ -450,6 +458,8 @@
         <button class="icon-btn" id="btnPDF" title="Export PDF (Alt+P)">PDF</button>
       </div>
     </header>
+    
+    
 
     <main class="app-main" role="main">
       <section class="schedule-shell" aria-label="Schedule grid area">
@@ -702,6 +712,20 @@
           document.getElementById('btnPDF').addEventListener('click', window.exportToPDF);
           document.getElementById('btnDownload').addEventListener('click', window.exportSchedule);
           document.getElementById('btnManageStudents').addEventListener('click', () => this.openManageStudentsModal());
+          
+          // Inline edit: double-click header to edit; Enter/blur saves; Esc cancels
+          const headerTitleEl = document.getElementById('headerTitle');
+          if (headerTitleEl) {
+            headerTitleEl.tabIndex = 0;
+            headerTitleEl.addEventListener('dblclick', () => this.beginHeaderEdit());
+            headerTitleEl.addEventListener('keydown', (e) => {
+              // Enter starts edit if not already editing
+              if (e.key === 'Enter' && headerTitleEl.getAttribute('contenteditable') !== 'true') {
+                e.preventDefault();
+                this.beginHeaderEdit();
+              }
+            });
+          }
 
           document.getElementById('studentSave').addEventListener('click', window.addStudentFromModal);
           // Submit manage modal with Enter from any input/select
@@ -1245,6 +1269,49 @@
           document.getElementById('manageStudentsModal').style.display = 'none';
         },
 
+        beginHeaderEdit() {
+          const el = document.getElementById('headerTitle');
+          if (!el) return;
+          const original = el.textContent || '';
+          el.setAttribute('contenteditable', 'true');
+          el.setAttribute('role', 'textbox');
+          el.setAttribute('aria-label', 'Header title (editing)');
+          el.removeAttribute('aria-live');
+          // Place caret at end
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          range.collapse(false);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+          const endEdit = (save) => {
+            el.removeEventListener('blur', onBlur);
+            el.removeEventListener('keydown', onKey);
+            el.removeAttribute('contenteditable');
+            el.removeAttribute('role');
+            el.removeAttribute('aria-label');
+            el.setAttribute('aria-live', 'polite');
+            const nextText = (el.textContent || '').trim();
+            if (save) {
+              const finalText = nextText || original;
+              el.textContent = finalText;
+              if (DataManager.state && DataManager.state.settings) {
+                DataManager.state.settings.headerTitle = finalText;
+                DataManager.save();
+              }
+            } else {
+              el.textContent = original;
+            }
+          };
+          const onBlur = () => endEdit(true);
+          const onKey = (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); endEdit(true); }
+            if (e.key === 'Escape') { e.preventDefault(); endEdit(false); }
+          };
+          el.addEventListener('blur', onBlur);
+          el.addEventListener('keydown', onKey);
+        },
+
         // Theme system methods
         initThemeSystem() {
           // Load theme from data state, localStorage, or default to spring
@@ -1257,17 +1324,39 @@
           
           // Set up theme selector
           const themeSelector = document.getElementById('themeSelector');
+          const themeWrap = document.getElementById('themeSelectWrap');
+          const themeLabel = document.getElementById('themeSelectLabel');
+          const updateWrapLabel = (val) => {
+            if (!themeWrap || !themeSelector) return;
+            const opt = themeSelector.options[themeSelector.selectedIndex];
+            themeWrap.setAttribute('data-label', opt ? opt.textContent : val);
+            if (themeLabel) themeLabel.textContent = opt ? opt.textContent : val;
+            // BFROS diagnostics: measure widths
+            try {
+              const wrapRect = themeWrap.getBoundingClientRect();
+              const selRect = themeSelector.getBoundingClientRect();
+              console.debug('[theme-select-width]', {
+                value: val,
+                label: opt ? opt.textContent : val,
+                wrapW: Math.round(wrapRect.width),
+                selectW: Math.round(selRect.width),
+                styleW: getComputedStyle(themeSelector).width
+              });
+            } catch {}
+          };
           if (themeSelector) {
             themeSelector.value = themeToUse;
+            updateWrapLabel(themeToUse);
             themeSelector.addEventListener('change', (e) => {
               this.setTheme(e.target.value);
+              updateWrapLabel(e.target.value);
             });
           }
         },
 
         setTheme(themeName) {
           // Validate theme name
-          const validThemes = ['spring', 'summer', 'fall', 'winter'];
+          const validThemes = ['spring', 'summer', 'fall'];
           if (!validThemes.includes(themeName)) {
             console.warn('Invalid theme:', themeName);
             return;
@@ -1287,8 +1376,14 @@
           
           // Update theme selector if it exists
           const themeSelector = document.getElementById('themeSelector');
-          if (themeSelector) {
-            themeSelector.value = themeName;
+          const themeWrap = document.getElementById('themeSelectWrap');
+          const themeLabel = document.getElementById('themeSelectLabel');
+          if (themeSelector) themeSelector.value = themeName;
+          if (themeWrap && themeSelector) {
+            const opt = themeSelector.options[themeSelector.selectedIndex];
+            const txt = opt ? opt.textContent : themeName;
+            themeWrap.setAttribute('data-label', txt);
+            if (themeLabel) themeLabel.textContent = txt;
           }
 
           console.log('Theme changed to:', themeName);
