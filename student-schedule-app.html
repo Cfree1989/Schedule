@@ -96,8 +96,7 @@
       grid-template-columns: minmax(60px, 80px) 1fr minmax(60px, 80px);
       gap: 8px;
       align-items: end; /* Align gutters and day blocks at the bottom. do not change this.*/
-      max-height: 45vh; /* Cap height to prevent excessive negative space above */
-      overflow: auto;   /* Allow scroll when needed */
+      overflow: visible;   /* Avoid internal vertical scrollbars */
     }
 
     .time-gutter, .time-gutter-right {
@@ -586,6 +585,41 @@
 
           // Manage modal close X
           document.getElementById('manageStudentsCloseX').addEventListener('click', () => this.closeManageStudentsModal());
+
+          // Fit schedule height on load and resize
+          this.fitScheduleHeight();
+          let __fitTimer = null;
+          window.addEventListener('resize', () => {
+            if (__fitTimer) clearTimeout(__fitTimer);
+            __fitTimer = setTimeout(() => this.fitScheduleHeight(), 100);
+          });
+        },
+        fitScheduleHeight() {
+          try {
+            const header = document.querySelector('.app-header');
+            const footer = document.querySelector('.app-footer');
+            const main = document.querySelector('.app-main');
+            const headerH = header ? header.getBoundingClientRect().height : 0;
+            const footerH = footer ? footer.getBoundingClientRect().height : 0;
+            const mainStyles = main ? getComputedStyle(main) : null;
+            const mainPadTop = mainStyles ? parseFloat(mainStyles.paddingTop || '0') : 0;
+            const mainPadBottom = mainStyles ? parseFloat(mainStyles.paddingBottom || '0') : 0;
+            // Available height for schedule area approx equals viewport minus header/footer and paddings
+            const viewportH = window.innerHeight || document.documentElement.clientHeight || 800;
+            const gaps = 16; // small fudge for gaps/margins between sections
+            const availableForSchedule = Math.max(0, viewportH - headerH - footerH - mainPadTop - mainPadBottom - gaps);
+            // Each day-block has 18 rows (1 header + 1 legend + 16 slots)
+            const rows = 18;
+            // Compute slot height and clamp for legibility
+            let slotH = Math.floor(availableForSchedule / rows);
+            const minH = 22; // minimum legible height
+            const maxH = 36; // prevent overly tall cells
+            if (!isFinite(slotH) || slotH <= 0) slotH = 28;
+            slotH = Math.max(minH, Math.min(maxH, slotH));
+            document.documentElement.style.setProperty('--slot-h', slotH + 'px');
+          } catch (e) {
+            console.warn('fitScheduleHeight failed', e);
+          }
         },
         renderGutters() {
           const left = document.getElementById('leftGutter');
