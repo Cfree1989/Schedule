@@ -603,3 +603,19 @@ Priority order:
 ### References (Context7)
 - Simple‑DataTables: column sorting and events (`columns` with `type: 'number'`, `sortSequence`, `datatable.sort`).
 - Grid.js: `sort: true`, column `sort: { compare }` for custom logic.
+
+## Executor — Audit Progress (2025-09-11)
+- Created `System_Audit.md` with full 4-pass structure, adapted for single-file app (no backend/React).
+- Completed end-to-end analysis of `student-schedule-app.html` and documented cross-cutting findings (CDN dependency, html2canvas memory fallback, accessibility patterns, totals sort parity).
+- No critical issues; medium operational risks noted and placed on Task Board.
+
+### Issues Logged
+- CDN availability risk when opening exported HTML fully offline; recommend documenting trade-off and optionally SRI attributes.
+- Potential memory pressure on very large PDF captures; 1.5x fallback already implemented.
+
+### Lessons
+- Keep totals sorting state in data (`settings.totalsSort`) to ensure UI/PDF parity.
+- Use `<tfoot>` for summary rows to avoid sorting them and to improve accessibility.
+
+### Next Steps
+- If approved, implement SRI on CDN scripts and add a brief “Offline Usage” note in the UI or docs.

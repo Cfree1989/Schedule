@@ -572,10 +572,10 @@
   </script>
 
   <!-- Libraries (UMD) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js" integrity="sha384-UFvZBDnJ4PAYKb7VYwq105qNLT/F1oZzrmAmuOH2bBML35uj8CsDA2gZNKfdXIbD" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" integrity="sha384-BSxuMLxX+FCbTdYec3TbXlnMGEEM2QXTFdtDaveen71o+jswm2J36+xFqp8k4VHM" crossorigin="anonymous"></script>
 
   <script>
     (function() {
@@ -596,6 +596,60 @@
 
       function parseJSONSafe(text) {
         try { return JSON.parse(text); } catch { return null; }
+      }
+
+      function formatCodeThirdLower(code) {
+        try {
+          const str = String(code || '');
+          if (str.length < 3) return str;
+          const third = str.charAt(2);
+          if (/^[A-Z]$/.test(third)) {
+            return str.slice(0, 2) + third.toLowerCase() + str.slice(3);
+          }
+          return str;
+        } catch { return code; }
+      }
+
+      // Generate a short code from a name and ensure it's unique among current students.
+      // Strategy: Prefer FirstInitial + progressive LastName letters (e.g., JD → JDO → JDOE),
+      // capped to 3 letters; if all taken, append 2,3,4... as suffix. Fallback to initials.
+      function generateUniqueCodeFromName(name, selfId) {
+        try {
+          const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+          let candidates = [];
+          if (parts.length >= 2) {
+            const firstInitial = parts[0][0] || 'S';
+            const last = parts[parts.length - 1] || '';
+            const lastUp = last.toUpperCase();
+            const fiUp = (firstInitial || 'S').toUpperCase();
+            // Try FI + L, FI + LA, FI + LAS (max 3 total characters)
+            if (lastUp.length >= 1) candidates.push((fiUp + lastUp.slice(0,1)).slice(0,3));
+            if (lastUp.length >= 2) candidates.push((fiUp + lastUp.slice(0,2)).slice(0,3));
+            if (lastUp.length >= 3) candidates.push((fiUp + lastUp.slice(0,3)).slice(0,3));
+          }
+          // Fallback: initials up to 3
+          if (candidates.length === 0) {
+            const baseInit = parts.map(p => p[0]).join('').slice(0,3).toUpperCase();
+            candidates.push(baseInit || 'S');
+          }
+          const studentsNow = (window.__DataManager?.state?.students) || [];
+          const used = new Set(
+            studentsNow
+              .filter(s => String(s.id) !== String(selfId))
+              .map(s => String(s.code || '').toUpperCase())
+          );
+          // Try candidates in order
+          for (const cand of candidates) {
+            if (!used.has(String(cand).toUpperCase())) return formatCodeThirdLower(cand);
+          }
+          // If all taken, append numeric suffix to the strongest candidate
+          const base = candidates[candidates.length - 1] || 'S';
+          let n = 2;
+          while (used.has(String((base + String(n))).toUpperCase())) n++;
+          return formatCodeThirdLower(base + String(n));
+        } catch {
+          return 'S';
+        }
       }
 
       const DataManager = {
@@ -702,21 +756,21 @@
           };
         },
         load() {
-          // 1) App state cache (prefer user-saved local state)
-          const appState = parseJSONSafe(localStorage.getItem(STORAGE_KEYS.appState));
-          if (appState && typeof appState === 'object') {
-            this.state = appState;
-            this.ensureOrderPerDay(this.state.students || []);
-            return this.state;
-          }
-          // 2) Embedded JSON (used primarily for exported single-file HTML)
+          // 1) Embedded JSON (file is source of truth - highest priority)
           const embedded = this.getEmbedded();
           if (embedded && typeof embedded === 'object') {
             this.state = embedded;
             this.ensureOrderPerDay(this.state.students || []);
             return this.state;
           }
-          // 3) Hybrid/localStorage legacy
+          // 2) App state cache (fallback to user-saved local state)
+          const appState = parseJSONSafe(localStorage.getItem(STORAGE_KEYS.appState));
+          if (appState && typeof appState === 'object') {
+            this.state = appState;
+            this.ensureOrderPerDay(this.state.students || []);
+            return this.state;
+          }
+          // 3) Hybrid/localStorage legacy (fallback)
           const hybrid = parseJSONSafe(localStorage.getItem(STORAGE_KEYS.hybrid));
           if (hybrid && hybrid.trackedState) {
             this.state = {
@@ -1409,7 +1463,7 @@
                 // Update student object
                 s.name = newName;
                 s.role = newRole;
-                s.code = newName.split(/\s+/).map(p=>p[0]).join('').slice(0,3).toUpperCase();
+                s.code = generateUniqueCodeFromName(newName, s.id);
                 DataManager.save();
                 // Refresh UI
                 UI.renderWeek(DataManager.state.students || []);
@@ -1736,7 +1790,8 @@
               3: { halign: 'right' },
               4: { halign: 'right' },
               5: { halign: 'right' },
-              6: { halign: 'right' }
+              6: { halign: 'right' },
+              7: { halign: 'right' }
             },
             margin: { top: 36, right: margin, bottom: margin, left: margin },
             foot: [totalsRow],
@@ -1802,7 +1857,7 @@
         const name = document.getElementById('studentName').value.trim();
         const role = document.getElementById('studentRole').value;
         if (!name) { alert('Please enter a name.'); return; }
-        const code = name.split(/\s+/).map(s => s[0]).join('').slice(0,3).toUpperCase();
+        const code = generateUniqueCodeFromName(name);
         const colorIndex = (DataManager.state.students.length) % 15;
         const id = 'stu-' + (Date.now());
         DataManager.state.students.push({ id, name, code, role, colorIndex });
