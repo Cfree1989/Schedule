@@ -333,8 +333,11 @@
     }
     .totals-title { font-weight: 700; margin-bottom: 8px; }
     table#totalsTable { width: 100%; border-collapse: collapse; }
-    table#totalsTable th, table#totalsTable td { border: 1px solid var(--border); padding: 8px 10px; font-size: 14px; }
-    table#totalsTable th { background: var(--legend-bg); text-align: left; }
+    table#totalsTable th, table#totalsTable td { border: 1px solid var(--border); padding: 8px 10px; font-size: 14px; text-align: center; }
+    table#totalsTable th { background: var(--legend-bg); }
+    table#totalsTable th:first-child, table#totalsTable td:first-child { text-align: left; }
+    table#totalsTable tfoot td { background: #e0d6c8; font-weight: 700; text-align: center; }
+    table#totalsTable tfoot td:first-child { text-align: left; }
 
     .app-footer {
       display: flex;
@@ -436,6 +439,19 @@
       border-radius: 6px; 
       padding: 2px 4px; 
     }
+    
+    /* Print styles (Letter 8.5x11, landscape) */
+    @media print {
+      @page { size: letter landscape; margin: 0.5in; }
+      html, body { background: #fff !important; }
+      .app-header { position: static; box-shadow: none; }
+      .header-actions { display: none !important; }
+      .app-main { padding: 0; }
+      .schedule-shell { overflow: visible !important; grid-template-columns: minmax(58px, 72px) 1fr minmax(58px, 72px); }
+      .time-gutter, .time-gutter-right { position: static; }
+      .paint-indicator { display: none !important; }
+      table#totalsTable tfoot td { background: #e0d6c8; font-weight: 700; }
+    }
   </style>
 </head>
 <body>
@@ -456,6 +472,7 @@
         <button class="icon-btn" id="btnManageStudents" title="Manage students">Manage Students</button>
         <button class="icon-btn" id="btnDownload" title="Download single-file HTML">Download</button>
         <button class="icon-btn" id="btnPDF" title="Export PDF (Alt+P)">PDF</button>
+        <button class="icon-btn" id="btnLoadFile" title="Load embedded file data">Load</button>
       </div>
     </header>
     
@@ -551,7 +568,7 @@
     "metadata": {"createdAt": "${new Date().toISOString()}", "source": "embedded"},
     "settings": { 
       "headerTitle": "STUDENT WORKER SCHEDULE | 2024–2025",
-      "theme": "spring"
+      "theme": "fall"
     },
     "students": [
       {"id":"stu-1","name":"Jane Doe","code":"JD","role":"PA","colorIndex":0},
@@ -572,10 +589,10 @@
   </script>
 
   <!-- Libraries (UMD) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js" integrity="sha384-UFvZBDnJ4PAYKb7VYwq105qNLT/F1oZzrmAmuOH2bBML35uj8CsDA2gZNKfdXIbD" crossorigin="anonymous"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" integrity="sha384-BSxuMLxX+FCbTdYec3TbXlnMGEEM2QXTFdtDaveen71o+jswm2J36+xFqp8k4VHM" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 
   <script>
     (function() {
@@ -743,7 +760,7 @@
             metadata: { createdAt: new Date().toISOString(), source: 'defaults' },
             settings: { 
               headerTitle: 'STUDENT WORKER SCHEDULE | 2024–2025',
-              theme: 'spring'
+              theme: 'fall'
             },
             students: [
               {id:'stu-1',name:'Jane Doe',code:'JD',role:'PA',colorIndex:0},
@@ -756,17 +773,17 @@
           };
         },
         load() {
-          // 1) Embedded JSON (file is source of truth - highest priority)
-          const embedded = this.getEmbedded();
-          if (embedded && typeof embedded === 'object') {
-            this.state = embedded;
-            this.ensureOrderPerDay(this.state.students || []);
-            return this.state;
-          }
-          // 2) App state cache (fallback to user-saved local state)
+          // 1) App state cache (user-saved local state - highest priority)
           const appState = parseJSONSafe(localStorage.getItem(STORAGE_KEYS.appState));
           if (appState && typeof appState === 'object') {
             this.state = appState;
+            this.ensureOrderPerDay(this.state.students || []);
+            return this.state;
+          }
+          // 2) Embedded JSON (file is fallback for new users)
+          const embedded = this.getEmbedded();
+          if (embedded && typeof embedded === 'object') {
+            this.state = embedded;
             this.ensureOrderPerDay(this.state.students || []);
             return this.state;
           }
@@ -825,6 +842,7 @@
           document.getElementById('btnClear').addEventListener('click', window.clearTimes);
           document.getElementById('btnPDF').addEventListener('click', window.exportToPDF);
           document.getElementById('btnDownload').addEventListener('click', window.exportSchedule);
+          document.getElementById('btnLoadFile').addEventListener('click', window.loadFileData);
           document.getElementById('btnManageStudents').addEventListener('click', () => this.openManageStudentsModal());
           
           // Inline edit: double-click header to edit; Enter/blur saves; Esc cancels
@@ -1560,7 +1578,7 @@
           // Load theme from data state, localStorage, or default to spring
           const dataTheme = DataManager.state?.settings?.theme;
           const savedTheme = localStorage.getItem('studentScheduleTheme');
-          const defaultTheme = 'spring';
+          const defaultTheme = 'fall';
           const themeToUse = dataTheme || savedTheme || defaultTheme;
           
           this.setTheme(themeToUse);
@@ -1659,43 +1677,78 @@
             return;
           }
 
-          const margin = 24; // pt
+          const margin = 16; // pt (tighter)
+          const headerBarH = 36; // pt
           const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
           const pageWidth = doc.internal.pageSize.getWidth();
           const pageHeight = doc.internal.pageSize.getHeight();
 
-          // Page 1: capture schedule grid
-          const grid = document.getElementById('weekGrid');
+          // Page 1: capture full schedule shell (includes left/right time gutters)
+          const shell = document.querySelector('.schedule-shell');
+          if (!shell) { alert('Could not find schedule.'); return; }
+          const leftG = document.getElementById('leftGutter');
+          const rightG = document.getElementById('rightGutter');
+          const __prevLeftPos = leftG ? leftG.style.position : '';
+          const __prevRightPos = rightG ? rightG.style.position : '';
+          if (leftG) leftG.style.position = 'static';
+          if (rightG) rightG.style.position = 'static';
           let canvas;
           try {
-            canvas = await html2canvas(grid, {
-              scale: 2,
-              windowWidth: grid.scrollWidth,
-              windowHeight: grid.scrollHeight
+            canvas = await html2canvas(shell, {
+              scale: 3,
+              backgroundColor: '#ffffff',
+              windowWidth: shell.scrollWidth,
+              windowHeight: shell.scrollHeight
             });
           } catch (e1) {
-            // Fallback scale for memory-constrained environments
-            canvas = await html2canvas(grid, {
-              scale: 1.5,
-              windowWidth: grid.scrollWidth,
-              windowHeight: grid.scrollHeight
-            });
+            try {
+              canvas = await html2canvas(shell, {
+                scale: 2,
+                backgroundColor: '#ffffff',
+                windowWidth: shell.scrollWidth,
+                windowHeight: shell.scrollHeight
+              });
+            } catch (e2) {
+              canvas = await html2canvas(shell, {
+                scale: 1.5,
+                backgroundColor: '#ffffff',
+                windowWidth: shell.scrollWidth,
+                windowHeight: shell.scrollHeight
+              });
+            }
+          } finally {
+            if (leftG) leftG.style.position = __prevLeftPos;
+            if (rightG) rightG.style.position = __prevRightPos;
           }
           const imgData = canvas.toDataURL('image/png');
+          // Resolve theme header color
+          const headerBg = (getComputedStyle(document.documentElement).getPropertyValue('--header-bg') || '#333').trim();
+          const hex = headerBg.startsWith('#') ? headerBg.slice(1) : headerBg;
+          const r = parseInt(hex.substring(0,2), 16) || 51;
+          const g = parseInt(hex.substring(2,4), 16) || 51;
+          const b = parseInt(hex.substring(4,6), 16) || 51;
           const availableW = pageWidth - margin * 2;
-          const availableH = pageHeight - margin * 2;
-          const ratio = Math.min(availableW / canvas.width, availableH / canvas.height);
+          const topY = margin + headerBarH + 4; // slightly tighter
+          const availableH = pageHeight - topY - margin;
+          // Prefer filling height to maximize size
+          const ratioW = availableW / canvas.width;
+          const ratioH = availableH / canvas.height;
+          const ratio = Math.min(ratioW, ratioH) * 1.02; // slight oversize to utilize space
           const targetW = canvas.width * ratio;
           const targetH = canvas.height * ratio;
-          const targetX = (pageWidth - targetW) / 2;
-          const targetY = (pageHeight - targetH) / 2;
+          const targetX = Math.max(margin, margin + (availableW - targetW) / 2);
+          const targetY = Math.max(topY, topY + (availableH - targetH) / 2);
 
-          // Optional header on page 1
+          // Themed header bar and title on page 1
           const title = (window.__DataManager?.state?.settings?.headerTitle) || 'STUDENT WORKER SCHEDULE | 2024–2025';
           const dateStr = new Date().toLocaleDateString();
-          doc.setFontSize(12);
-          doc.text(title, margin, 20);
-          doc.text(dateStr, pageWidth / 2, 20, { align: 'center' });
+          doc.setFillColor(r, g, b);
+          doc.rect(0, 0, pageWidth, headerBarH, 'F');
+          doc.setTextColor(255,255,255);
+          doc.setFontSize(13);
+          doc.text(title, margin, 22);
+          doc.text(dateStr, pageWidth / 2, 22, { align: 'center' });
+          doc.setTextColor(0,0,0);
 
           doc.addImage(imgData, 'PNG', targetX, targetY, targetW, targetH);
 
@@ -1724,7 +1777,7 @@
             })
             .map(x => x.r);
           const body = sortedForPdf.map(r => [r.name, r.role || '', ...r.days.map(d=>d.toFixed(2)), r.total.toFixed(2)]);
-          const totalsRow = ['DAILY TOTALS', ...dailyTotals.map(d=>d.toFixed(2)), grand.toFixed(2)];
+          const totalsRow = ['DAILY TOTALS', '', ...dailyTotals.map(d=>d.toFixed(2)), grand.toFixed(2)];
 
           // Optional parity check against UI totals table
           try {
@@ -1732,12 +1785,11 @@
             if (tbodyEl) {
               let mismatchCount = 0;
               const rows = Array.from(tbodyEl.querySelectorAll('tr'));
-              const domTotalsRow = rows.find(r => (r.querySelector('td')?.textContent || '').trim().toUpperCase() === 'DAILY TOTALS');
-              const domStudentRows = rows.filter(r => r !== domTotalsRow);
+              const domStudentRows = rows;
               const domMap = new Map();
               domStudentRows.forEach(r => {
                 const tds = Array.from(r.querySelectorAll('td'));
-                if (tds.length === 7) {
+                if (tds.length === 8) {
                   const name = (tds[0].textContent || '').trim();
                   const vals = tds.slice(1).map(td => (td.textContent || '').trim());
                   domMap.set(name, vals);
@@ -1753,9 +1805,10 @@
                   if (String(vals[i]) !== String(domVals[i])) { mismatchCount++; break; }
                 }
               });
-              // Compare totals row to UI
-              if (domTotalsRow) {
-                const tds = Array.from(domTotalsRow.querySelectorAll('td'));
+              // Compare totals row to UI (from tfoot)
+              const domFoot = document.querySelector('#totalsTable tfoot tr');
+              if (domFoot) {
+                const tds = Array.from(domFoot.querySelectorAll('td'));
                 const domTotalsVals = tds.slice(1).map(td => (td.textContent || '').trim());
                 const pdfTotalsVals = totalsRow.slice(1);
                 for (let i = 0; i < pdfTotalsVals.length; i++) {
@@ -1784,26 +1837,45 @@
             styles: { fontSize: 10, cellPadding: 4 },
             headStyles: { fillColor: [234,227,217], textColor: 0 },
             columnStyles: {
-              0: { halign: 'left', cellWidth: 160 },
-              1: { halign: 'right' },
-              2: { halign: 'right' },
-              3: { halign: 'right' },
-              4: { halign: 'right' },
-              5: { halign: 'right' },
-              6: { halign: 'right' },
-              7: { halign: 'right' }
+              0: { halign: 'left', cellWidth: 175 },
+              1: { halign: 'center', cellWidth: 50 },
+              2: { halign: 'center' },
+              3: { halign: 'center' },
+              4: { halign: 'center' },
+              5: { halign: 'center' },
+              6: { halign: 'center' },
+              7: { halign: 'center' }
             },
-            margin: { top: 36, right: margin, bottom: margin, left: margin },
+            margin: { top: headerBarH + 12, right: margin, bottom: margin, left: margin },
             foot: [totalsRow],
-            footStyles: { fontStyle: 'bold' },
+            footStyles: { 
+              fontStyle: 'bold', 
+              fillColor: [200,190,175]
+            },
             showHead: 'everyPage',
             showFoot: 'lastPage',
             pageBreak: 'auto',
+            didDrawCell: (data) => {
+              // Center all footer cells except the first one (DAILY TOTALS text)
+              if (data.section === 'foot') {
+                if (data.column.index === 0) {
+                  // Left align the first column (DAILY TOTALS text)
+                  data.cell.textAlign = 'left';
+                } else {
+                  // Center all other columns
+                  data.cell.textAlign = 'center';
+                }
+              }
+            },
             didDrawPage: (data) => {
-              // Header and footer for table pages
+              // Themed header bar and footer for table pages
+              doc.setFillColor(r, g, b);
+              doc.rect(0, 0, pageWidth, headerBarH, 'F');
+              doc.setTextColor(255,255,255);
               doc.setFontSize(12);
-              doc.text(title, data.settings.margin.left, 20);
-              doc.text(dateStr, pageWidth / 2, 20, { align: 'center' });
+              doc.text(title, data.settings.margin.left, 22);
+              doc.text(dateStr, pageWidth / 2, 22, { align: 'center' });
+              doc.setTextColor(0,0,0);
               const pageStr = 'Page ' + (data.pageNumber || 1);
               doc.text(pageStr, pageWidth - data.settings.margin.right, pageHeight - 12, { align: 'right' });
             }
@@ -1821,16 +1893,64 @@
         }
       };
 
+      window.loadFileData = function loadFileData() {
+        if (!confirm('Load embedded file data? This will replace your current schedule and cannot be undone.')) return;
+        if (!window.__DataManager) return;
+        
+        // Clear localStorage to force loading embedded data
+        try {
+          localStorage.removeItem(STORAGE_KEYS.appState);
+          localStorage.removeItem(STORAGE_KEYS.hybrid);
+          localStorage.removeItem(STORAGE_KEYS.legacySchedule);
+          localStorage.removeItem(STORAGE_KEYS.legacyPeople);
+        } catch (e) {
+          console.warn('Failed to clear localStorage:', e);
+        }
+        
+        // Force reload from embedded data
+        const embedded = window.__DataManager.getEmbedded();
+        if (embedded && typeof embedded === 'object') {
+          window.__DataManager.state = embedded;
+          window.__DataManager.ensureOrderPerDay(window.__DataManager.state.students || []);
+          window.__DataManager.save();
+          
+          // Refresh the UI
+          window.__UI.renderWeek(window.__DataManager.state.students || []);
+          window.__UI.renderTotals();
+          
+          // Update header title
+          const title = window.__DataManager.state?.settings?.headerTitle || 'STUDENT WORKER SCHEDULE | 2024–2025';
+          document.getElementById('headerTitle').textContent = title;
+          
+          alert('File data loaded successfully!');
+        } else {
+          alert('No embedded data found in this file.');
+        }
+      };
+
       window.exportSchedule = function exportSchedule() {
-        // Placeholder: basic single-file export with embedded JSON replaced
+        // Robust single-file export with embedded JSON replaced
         if (!window.__DataManager || !window.__DataManager.state) return;
-        const serializer = new XMLSerializer();
         const cloneDoc = document.cloneNode(true);
+
+        // Remove ephemeral UI elements/state that should not persist across reloads
+        try {
+          const paint = cloneDoc.getElementById('paintIndicator');
+          if (paint && paint.parentNode) paint.parentNode.removeChild(paint);
+          const modal = cloneDoc.getElementById('manageStudentsModal');
+          if (modal) modal.style.display = 'none';
+          const totals = cloneDoc.getElementById('totalsTable');
+          if (totals && totals.dataset) delete totals.dataset.sortHandlers; // ensure headers re-bind on load
+        } catch (_) {}
+
+        // Replace embedded JSON with current state
         const embedded = cloneDoc.getElementById('embedded-data');
         if (embedded) {
+          let createdAt = (window.__DataManager.state.metadata && window.__DataManager.state.metadata.createdAt) || '';
+          if (!createdAt || /\$\{/.test(createdAt)) createdAt = new Date().toISOString();
           embedded.textContent = JSON.stringify({
             version: window.__DataManager.state.version || APP_VERSION,
-            metadata: { ...window.__DataManager.state.metadata, exportedAt: new Date().toISOString(), source: 'export' },
+            metadata: { createdAt, exportedAt: new Date().toISOString(), source: 'export' },
             settings: {
               ...window.__DataManager.state.settings,
               theme: window.__DataManager.state.settings?.theme || 'spring'
@@ -1840,7 +1960,11 @@
             orderPerDay: window.__DataManager.state.orderPerDay
           });
         }
-        const html = '<!DOCTYPE html>\n' + serializer.serializeToString(cloneDoc);
+
+        // Build clean HTML (no xmlns) without XMLSerializer escaping
+        const inner = cloneDoc.documentElement.innerHTML;
+        const html = '<!DOCTYPE html>\n<html lang="en">' + inner + '</html>';
+
         const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
         const a = document.createElement('a');
         const dateStr = new Date().toISOString().slice(0,10);
