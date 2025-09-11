@@ -26,7 +26,7 @@
       --slot-h: 28px;
       --corner-r: 10px;
       --grid-line: 2px;
-      --min-col-w: 56px; /* minimum width per student column */
+      --min-col-w: 20px; /* minimum width per student column (timeslots) */
     }
 
     html, body {
@@ -97,7 +97,7 @@
 
     .schedule-shell {
       display: grid;
-      grid-template-columns: minmax(60px, 80px) 1fr minmax(60px, 80px);
+      grid-template-columns: minmax(84px, 110px) 1fr minmax(84px, 110px);
       gap: 8px;
       align-items: end; /* Align gutters and day blocks at the bottom. do not change this.*/
       overflow-x: auto;  /* Allow horizontal scroll when many students */
@@ -132,6 +132,7 @@
       align-items: center;
       justify-content: center;
       height: var(--slot-h);
+      white-space: nowrap; /* prevent wrapping of time labels */
     }
 
     /* Draw dividers per item so we can skip the last one and avoid double bottom border */
@@ -148,8 +149,7 @@
       grid-template-columns: repeat(5, 1fr);
       gap: 4px;
       overflow: visible;
-      min-width: 1200px; /* Prevent extreme horizontal collapse, allow x-scroll in shell */
-      min-width: 0;
+      min-width: 0; /* allow JS to control min-width dynamically */
       max-height: none;
     }
 
@@ -706,14 +706,21 @@
           // Dynamic min-width to prevent horizontal over-collapse; enable x-scroll in shell
           try {
             const cs = getComputedStyle(document.documentElement);
-            const minColStr = cs.getPropertyValue('--min-col-w') || '56px';
-            const minColW = parseInt(String(minColStr).trim().replace('px','')) || 56;
+            const minColStr = cs.getPropertyValue('--min-col-w') || '20px';
+            const minColW = parseInt(String(minColStr).trim().replace('px','')) || 20;
             const studentsCount = Math.max(1, (students?.length || 0));
             const dayGap = 4; // matches .week-grid gap
             const totalDays = 5;
+            // expected width for middle lane (student columns) across all 5 day blocks + gaps
             const minWidthPx = (studentsCount * minColW) * totalDays + (dayGap * (totalDays - 1));
-            const floorMin = 1200; // baseline similar to template
-            root.style.minWidth = Math.max(floorMin, minWidthPx) + 'px';
+            // add gutters width (left + right) estimated at 2 * 96px and day gap padding safety
+            const gutters = 96 * 2; // aligns with schedule-shell minmax(84px, 110px)
+            const safety = 24;
+            const computedMin = minWidthPx + gutters + safety;
+            const floorMin = 900; // smaller baseline so scroll will appear earlier
+            const finalMin = Math.max(floorMin, computedMin);
+            const weekGrid = document.getElementById('weekGrid');
+            if (weekGrid) weekGrid.style.minWidth = finalMin + 'px';
           } catch (e) {
             // noop
           }
