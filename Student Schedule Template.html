@@ -1636,18 +1636,18 @@
 
       // Public API placeholders (to be implemented in next milestones)
       window.saveSchedule = function saveSchedule() {
-        DataManager.save();
-        UI.renderTotals();
+        window.__DataManager.save();
+        window.__UI.renderTotals();
         alert('Saved current state locally. Export to persist into a file.');
       };
 
       window.clearTimes = function clearTimes() {
         if (!confirm('Clear all scheduled times? Students remain intact.')) return;
-        if (!DataManager.state) return;
-        DataManager.state.schedule = {};
-        DataManager.save();
-        UI.renderWeek(DataManager.state.students || []);
-        UI.renderTotals();
+        if (!window.__DataManager || !window.__DataManager.state) return;
+        window.__DataManager.state.schedule = {};
+        window.__DataManager.save();
+        window.__UI.renderWeek(window.__DataManager.state.students || []);
+        window.__UI.renderTotals();
         alert('All times cleared.');
       };
 
@@ -1823,21 +1823,21 @@
 
       window.exportSchedule = function exportSchedule() {
         // Placeholder: basic single-file export with embedded JSON replaced
-        if (!DataManager.state) return;
+        if (!window.__DataManager || !window.__DataManager.state) return;
         const serializer = new XMLSerializer();
         const cloneDoc = document.cloneNode(true);
         const embedded = cloneDoc.getElementById('embedded-data');
         if (embedded) {
           embedded.textContent = JSON.stringify({
-            version: DataManager.state.version || APP_VERSION,
-            metadata: { ...DataManager.state.metadata, exportedAt: new Date().toISOString(), source: 'export' },
+            version: window.__DataManager.state.version || APP_VERSION,
+            metadata: { ...window.__DataManager.state.metadata, exportedAt: new Date().toISOString(), source: 'export' },
             settings: {
-              ...DataManager.state.settings,
-              theme: DataManager.state.settings?.theme || 'spring'
+              ...window.__DataManager.state.settings,
+              theme: window.__DataManager.state.settings?.theme || 'spring'
             },
-            students: DataManager.state.students,
-            schedule: DataManager.state.schedule,
-            orderPerDay: DataManager.state.orderPerDay
+            students: window.__DataManager.state.students,
+            schedule: window.__DataManager.state.schedule,
+            orderPerDay: window.__DataManager.state.orderPerDay
           });
         }
         const html = '<!DOCTYPE html>\n' + serializer.serializeToString(cloneDoc);
@@ -1858,57 +1858,57 @@
         const role = document.getElementById('studentRole').value;
         if (!name) { alert('Please enter a name.'); return; }
         const code = generateUniqueCodeFromName(name);
-        const colorIndex = (DataManager.state.students.length) % 15;
+        const colorIndex = (window.__DataManager.state.students.length) % 15;
         const id = 'stu-' + (Date.now());
-        DataManager.state.students.push({ id, name, code, role, colorIndex });
+        window.__DataManager.state.students.push({ id, name, code, role, colorIndex });
         // Append new id to end of each day's order
         try {
-          if (!DataManager.state.orderPerDay) DataManager.state.orderPerDay = {};
+          if (!window.__DataManager.state.orderPerDay) window.__DataManager.state.orderPerDay = {};
           for (let di = 0; di < 5; di++) {
             const key = String(di);
-            if (!Array.isArray(DataManager.state.orderPerDay[key])) DataManager.state.orderPerDay[key] = [];
-            DataManager.state.orderPerDay[key].push(String(id));
+            if (!Array.isArray(window.__DataManager.state.orderPerDay[key])) window.__DataManager.state.orderPerDay[key] = [];
+            window.__DataManager.state.orderPerDay[key].push(String(id));
           }
         } catch (e) { console.warn('orderPerDay append failed', e); }
-        DataManager.save();
+        window.__DataManager.save();
         // Re-render grid and totals with new student
-        UI.renderWeek(DataManager.state.students);
-        UI.renderTotals();
+        window.__UI.renderWeek(window.__DataManager.state.students);
+        window.__UI.renderTotals();
         // Refresh the manage list and reset form, keep modal open for multiple adds
-        UI.openManageStudentsModal();
+        window.__UI.openManageStudentsModal();
       };
 
       window.removeStudent = function removeStudent(studentId) {
         if (!studentId) return;
-        const students = DataManager.state && DataManager.state.students ? DataManager.state.students : [];
+        const students = window.__DataManager.state && window.__DataManager.state.students ? window.__DataManager.state.students : [];
         const target = students.find(s => String(s.id) === String(studentId));
         const name = target ? target.name : 'this student';
         const ok = confirm(`Remove ${name}? This will also clear all of their scheduled times.`);
         if (!ok) return;
         // Remove student
-        DataManager.state.students = students.filter(s => String(s.id) !== String(studentId));
+        window.__DataManager.state.students = students.filter(s => String(s.id) !== String(studentId));
         // Purge schedule assignments
-        const sched = DataManager.state.schedule || {};
+        const sched = window.__DataManager.state.schedule || {};
         Object.keys(sched).forEach(k => {
           const parts = k.split('|');
           if (parts[2] === String(studentId)) delete sched[k];
         });
         // Remove from orderPerDay arrays
         try {
-          if (DataManager.state.orderPerDay && typeof DataManager.state.orderPerDay === 'object') {
+          if (window.__DataManager.state.orderPerDay && typeof window.__DataManager.state.orderPerDay === 'object') {
             for (let di = 0; di < 5; di++) {
               const key = String(di);
-              if (Array.isArray(DataManager.state.orderPerDay[key])) {
-                DataManager.state.orderPerDay[key] = DataManager.state.orderPerDay[key].filter(id => String(id) !== String(studentId));
+              if (Array.isArray(window.__DataManager.state.orderPerDay[key])) {
+                window.__DataManager.state.orderPerDay[key] = window.__DataManager.state.orderPerDay[key].filter(id => String(id) !== String(studentId));
               }
             }
           }
         } catch (e) { console.warn('orderPerDay removal failed', e); }
-        DataManager.save();
+        window.__DataManager.save();
         // Refresh UI and manage list
-        UI.renderWeek(DataManager.state.students || []);
-        UI.renderTotals();
-        UI.openManageStudentsModal();
+        window.__UI.renderWeek(window.__DataManager.state.students || []);
+        window.__UI.renderTotals();
+        window.__UI.openManageStudentsModal();
       };
 
       // Boot
