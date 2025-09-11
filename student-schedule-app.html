@@ -26,6 +26,7 @@
       --slot-h: 28px;
       --corner-r: 10px;
       --grid-line: 2px;
+      --min-col-w: 56px; /* minimum width per student column */
     }
 
     html, body {
@@ -99,7 +100,9 @@
       grid-template-columns: minmax(60px, 80px) 1fr minmax(60px, 80px);
       gap: 8px;
       align-items: end; /* Align gutters and day blocks at the bottom. do not change this.*/
-      overflow: visible;   /* Avoid internal vertical scrollbars */
+      overflow-x: auto;  /* Allow horizontal scroll when many students */
+      overflow-y: visible; /* Avoid internal vertical scrollbars unless forced by JS */
+      -webkit-overflow-scrolling: touch; /* smooth scroll on touch devices */
     }
 
     .time-gutter, .time-gutter-right {
@@ -145,6 +148,7 @@
       grid-template-columns: repeat(5, 1fr);
       gap: 4px;
       overflow: visible;
+      min-width: 1200px; /* Prevent extreme horizontal collapse, allow x-scroll in shell */
       min-width: 0;
       max-height: none;
     }
@@ -181,7 +185,7 @@
       border-bottom: 0;
       display: grid;
       grid-auto-flow: column;
-      grid-auto-columns: minmax(20px, 1fr);
+      grid-auto-columns: minmax(var(--min-col-w), 1fr);
       gap: 0;
       height: var(--slot-h);
       align-items: center;
@@ -206,7 +210,7 @@
       grid-template-rows: repeat(16, var(--slot-h));
       gap: 0;
     }
-    .slot-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(20px, 1fr); gap: 0; align-items: stretch; }
+    .slot-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(var(--min-col-w), 1fr); gap: 0; align-items: stretch; }
     /* Single-line grid borders: draw only top and right borders per cell */
     .slot-cell { border: 0; border-top: var(--grid-line) solid var(--border); border-right: var(--grid-line) solid var(--border); background: #fff; cursor: pointer; }
     /* Avoid double-thick edges: no right border on last col, no bottom border on last row */
@@ -602,6 +606,7 @@
             const header = document.querySelector('.app-header');
             const footer = document.querySelector('.app-footer');
             const main = document.querySelector('.app-main');
+            const shell = document.querySelector('.schedule-shell');
             const headerH = header ? header.getBoundingClientRect().height : 0;
             const footerH = footer ? footer.getBoundingClientRect().height : 0;
             const mainStyles = main ? getComputedStyle(main) : null;
@@ -615,11 +620,24 @@
             const rows = 18;
             // Compute slot height and clamp for legibility
             let slotH = Math.floor(availableForSchedule / rows);
-            const minH = 22; // minimum legible height
+            const minH = 22; // minimum legible height before enabling internal scroll
             const maxH = 36; // prevent overly tall cells
             if (!isFinite(slotH) || slotH <= 0) slotH = 28;
             slotH = Math.max(minH, Math.min(maxH, slotH));
             document.documentElement.style.setProperty('--slot-h', slotH + 'px');
+            // If we hit the minimum, enable internal scroll so the schedule doesn't shrink further
+            if (shell) {
+              const needScroll = (availableForSchedule / rows) < minH;
+              if (needScroll) {
+                // Constrain shell to exact content height at min slot size; add small fudge for borders
+                const maxPx = (rows * minH) + 8;
+                shell.style.maxHeight = maxPx + 'px';
+                shell.style.overflow = 'auto';
+              } else {
+                shell.style.maxHeight = '';
+                shell.style.overflow = 'visible';
+              }
+            }
           } catch (e) {
             console.warn('fitScheduleHeight failed', e);
           }
@@ -685,6 +703,20 @@
           root.innerHTML = '';
           // Ensure ARIA role for grid container
           root.setAttribute('role', 'grid');
+          // Dynamic min-width to prevent horizontal over-collapse; enable x-scroll in shell
+          try {
+            const cs = getComputedStyle(document.documentElement);
+            const minColStr = cs.getPropertyValue('--min-col-w') || '56px';
+            const minColW = parseInt(String(minColStr).trim().replace('px','')) || 56;
+            const studentsCount = Math.max(1, (students?.length || 0));
+            const dayGap = 4; // matches .week-grid gap
+            const totalDays = 5;
+            const minWidthPx = (studentsCount * minColW) * totalDays + (dayGap * (totalDays - 1));
+            const floorMin = 1200; // baseline similar to template
+            root.style.minWidth = Math.max(floorMin, minWidthPx) + 'px';
+          } catch (e) {
+            // noop
+          }
           const leftGutter = document.getElementById('leftGutter');
           const rightGutter = document.getElementById('rightGutter');
           // Ensure paint indicator exists
