@@ -6,14 +6,14 @@
   <title>Student Worker Schedule | Single-file App</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23705c49'/%3E%3Ctext x='50%25' y='50%25' dy='.35em' text-anchor='middle' font-family='Segoe UI, Arial' font-size='32' fill='%23ffffff'%3ES%3C/text%3E%3C/svg%3E" />
   <style>
-    /* Default Spring Theme */
+    /* Spring Theme */
     :root {
       --bg: #faf8f4;
       --surface: #fffdf8;
       --text: #2a2a2a;
       --muted-text: #4a4a4a;
       --border: #e5ded2;
-      --header-bg: #705c49;
+      --header-bg: #9479a7;
       --header-text: #ffffff;
       --accent: #b88a51;
       --accent-2: #7d9a6d;
@@ -21,7 +21,7 @@
       --focus: #2b7bbb;
       --chip-bg: #efe7dc;
 
-      --day-header-bg: #eae3d9;
+      --day-header-bg: #cddba4;
       --legend-bg: #f2ebe0;
       --grid-bg: #fffdf8;
       --slot-h: 28px;
@@ -375,55 +375,55 @@
     .chip { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 20px; padding: 0 6px; border-radius: 10px; font-size: 12px; font-weight: 700; border: 1px solid var(--border); background: var(--chip-bg); }
 
     /* Student color chips - Spring Theme (default) - 15 colors */
-    .swatch-0 { background: #D8C3A5; }
-    .swatch-1 { background: #E9D8A6; }
-    .swatch-2 { background: #CDE5D7; }
-    .swatch-3 { background: #F1D6C1; }
-    .swatch-4 { background: #BFD7EA; }
-    .swatch-5 { background: #F8BBD9; }
-    .swatch-6 { background: #C8E6C9; }
-    .swatch-7 { background: #FFCDD2; }
-    .swatch-8 { background: #D1C4E9; }
-    .swatch-9 { background: #B2DFDB; }
-    .swatch-10 { background: #FFE0B2; }
-    .swatch-11 { background: #DCEDC8; }
-    .swatch-12 { background: #F3E5F5; }
-    .swatch-13 { background: #E1F5FE; }
-    .swatch-14 { background: #FFF3E0; }
+    .swatch-0 { background: #4CAF50; }
+    .swatch-1 { background: #F06292; }
+    .swatch-2 { background: #00BCD4; }
+    .swatch-3 { background: #FFC107; }
+    .swatch-4 { background: #9C27B0; }
+    .swatch-5 { background: #81C784; }
+    .swatch-6 { background: #E91E63; }
+    .swatch-7 { background: #4DD0E1; }
+    .swatch-8 { background: #FFD54F; }
+    .swatch-9 { background: #BA68C8; }
+    .swatch-10 { background: #C8E6C9; }
+    .swatch-11 { background: #F8BBD9; }
+    .swatch-12 { background: #B2DFDB; }
+    .swatch-13 { background: #D1C4E9; }
+    .swatch-14 { background: #FFF176; }
 
     /* Summer Theme Student Colors - 15 colors */
-    [data-theme="summer"] .swatch-0 { background: #FFB74D; }
-    [data-theme="summer"] .swatch-1 { background: #FF8A65; }
-    [data-theme="summer"] .swatch-2 { background: #81C784; }
-    [data-theme="summer"] .swatch-3 { background: #FFD54F; }
-    [data-theme="summer"] .swatch-4 { background: #64B5F6; }
-    [data-theme="summer"] .swatch-5 { background: #F06292; }
-    [data-theme="summer"] .swatch-6 { background: #4CAF50; }
-    [data-theme="summer"] .swatch-7 { background: #FF5722; }
-    [data-theme="summer"] .swatch-8 { background: #9C27B0; }
-    [data-theme="summer"] .swatch-9 { background: #00BCD4; }
-    [data-theme="summer"] .swatch-10 { background: #FF9800; }
-    [data-theme="summer"] .swatch-11 { background: #8BC34A; }
-    [data-theme="summer"] .swatch-12 { background: #E91E63; }
-    [data-theme="summer"] .swatch-13 { background: #03A9F4; }
-    [data-theme="summer"] .swatch-14 { background: #FFC107; }
+    [data-theme="summer"] .swatch-0 { background: #E91E63; }
+    [data-theme="summer"] .swatch-1 { background: #FF9800; }
+    [data-theme="summer"] .swatch-2 { background: #4CAF50; }
+    [data-theme="summer"] .swatch-3 { background: #9C27B0; }
+    [data-theme="summer"] .swatch-4 { background: #FFB74D; }
+    [data-theme="summer"] .swatch-5 { background: #00BCD4; }
+    [data-theme="summer"] .swatch-6 { background: #FF5722; }
+    [data-theme="summer"] .swatch-7 { background: #81C784; }
+    [data-theme="summer"] .swatch-8 { background: #FFC107; }
+    [data-theme="summer"] .swatch-9 { background: #F06292; }
+    [data-theme="summer"] .swatch-10 { background: #8BC34A; }
+    [data-theme="summer"] .swatch-11 { background: #FFD54F; }
+    [data-theme="summer"] .swatch-12 { background: #BA68C8; }
+    [data-theme="summer"] .swatch-13 { background: #FF8A65; }
+    [data-theme="summer"] .swatch-14 { background: #26C6DA; }
 
     /* Fall Theme Student Colors - 15 colors */
-    [data-theme="fall"] .swatch-0 { background: #BCAAA4; }
-    [data-theme="fall"] .swatch-1 { background: #A1887F; }
-    [data-theme="fall"] .swatch-2 { background: #8D6E63; }
-    [data-theme="fall"] .swatch-3 { background: #D84315; }
+    [data-theme="fall"] .swatch-0 { background: #D84315; }
+    [data-theme="fall"] .swatch-1 { background: #2E7D32; }
+    [data-theme="fall"] .swatch-2 { background: #1976D2; }
+    [data-theme="fall"] .swatch-3 { background: #8D6E63; }
     [data-theme="fall"] .swatch-4 { background: #FF8F00; }
-    [data-theme="fall"] .swatch-5 { background: #795548; }
-    [data-theme="fall"] .swatch-6 { background: #5D4037; }
+    [data-theme="fall"] .swatch-5 { background: #689F38; }
+    [data-theme="fall"] .swatch-6 { background: #1565C0; }
     [data-theme="fall"] .swatch-7 { background: #BF360C; }
-    [data-theme="fall"] .swatch-8 { background: #E65100; }
-    [data-theme="fall"] .swatch-9 { background: #FF6F00; }
-    [data-theme="fall"] .swatch-10 { background: #6D4C41; }
-    [data-theme="fall"] .swatch-11 { background: #4E342E; }
-    [data-theme="fall"] .swatch-12 { background: #3E2723; }
-    [data-theme="fall"] .swatch-13 { background: #FF5722; }
-    [data-theme="fall"] .swatch-14 { background: #FF9800; }
+    [data-theme="fall"] .swatch-8 { background: #558B2F; }
+    [data-theme="fall"] .swatch-9 { background: #0D47A1; }
+    [data-theme="fall"] .swatch-10 { background: #F57C00; }
+    [data-theme="fall"] .swatch-11 { background: #5D4037; }
+    [data-theme="fall"] .swatch-12 { background: #E65100; }
+    [data-theme="fall"] .swatch-13 { background: #4E342E; }
+    [data-theme="fall"] .swatch-14 { background: #3E2723; }
 
 
     .visually-hidden { position: absolute !important; height: 1px; width: 1px; overflow: hidden; clip: rect(1px, 1px, 1px, 1px); white-space: nowrap; }
@@ -491,6 +491,17 @@
           <tfoot></tfoot>
         </table>
         <div id="totalsHelp" class="visually-hidden">Shows per-student daily and weekly hours.</div>
+        <div class="role-info" style="display: flex; gap: 16px; margin-top: 16px; justify-content: center; flex-wrap: wrap;">
+          <div style="background: var(--chip-bg); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); font-size: 12px;">
+            President's Aid: 6 hrs
+          </div>
+          <div style="background: var(--chip-bg); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); font-size: 12px;">
+            Work Study: 12 hrs
+          </div>
+          <div style="background: var(--chip-bg); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); font-size: 12px;">
+            Graduate Assistant: Variable
+          </div>
+        </div>
       </section>
 
     </main>
