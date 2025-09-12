@@ -467,7 +467,6 @@
           </select>
           <span class="select-label" id="themeSelectLabel">🍂 Fall</span>
         </span>
-        <button class="icon-btn" id="btnSave" title="Quick Save (Ctrl+S)">Save</button>
         <button class="icon-btn danger" id="btnClear" title="Clear all times">Clear Times</button>
         <button class="icon-btn" id="btnManageStudents" title="Manage students">Manage Students</button>
         <button class="icon-btn" id="btnDownload" title="Download single-file HTML">Download</button>
@@ -838,7 +837,6 @@
           this.renderTotals();
 
           // Wire actions
-          document.getElementById('btnSave').addEventListener('click', window.saveSchedule);
           document.getElementById('btnClear').addEventListener('click', window.clearTimes);
           document.getElementById('btnPDF').addEventListener('click', window.exportToPDF);
           document.getElementById('btnDownload').addEventListener('click', window.exportSchedule);
@@ -1648,16 +1646,12 @@
           }
 
           console.log('Theme changed to:', themeName);
-        }
+        },
+
       };
 
 
       // Public API placeholders (to be implemented in next milestones)
-      window.saveSchedule = function saveSchedule() {
-        window.__DataManager.save();
-        window.__UI.renderTotals();
-        alert('Saved current state locally. Export to persist into a file.');
-      };
 
       window.clearTimes = function clearTimes() {
         if (!confirm('Clear all scheduled times? Students remain intact.')) return;
@@ -2041,6 +2035,13 @@
       // Expose minimal objects only if needed later
       window.__DataManager = DataManager;
       window.__UI = UI;
+
+      // Auto-save debounce removed; rely on single direct save
+      // Override DataManager.save (no debounce; single save only)
+      const __originalSave = DataManager.save;
+      DataManager.save = function() {
+        __originalSave.call(this);
+      };
     })();
   </script>
 </body>
