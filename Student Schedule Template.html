@@ -1701,6 +1701,24 @@
           const __prevRightPos = rightG ? rightG.style.position : '';
           if (leftG) leftG.style.position = 'static';
           if (rightG) rightG.style.position = 'static';
+          // Temporarily tune CSS vars to favor taller schedule for capture (landscape):
+          // 1) Increase slot height (taller rows)
+          // 2) Decrease min column width (narrower columns) so width is less likely to limit scale
+          const __root = document.documentElement;
+          const __prevSlotHRaw = getComputedStyle(__root).getPropertyValue('--slot-h');
+          const __prevSlotH = (__prevSlotHRaw || '').trim();
+          const __prevMinColRaw = getComputedStyle(__root).getPropertyValue('--min-col-w');
+          const __prevMinCol = (__prevMinColRaw || '').trim();
+          try {
+            const __prevNum = parseInt((__prevSlotH || '').replace('px','').trim(), 10) || 28;
+            const __targetNum = Math.min(48, Math.max(36, __prevNum + 8));
+            __root.style.setProperty('--slot-h', __targetNum + 'px');
+            const __prevMinColNum = parseInt((__prevMinCol || '').replace('px','').trim(), 10) || 20;
+            const __targetMinCol = Math.max(10, Math.min(18, __prevMinColNum - 4));
+            __root.style.setProperty('--min-col-w', __targetMinCol + 'px');
+          } catch (_) {}
+          // Allow styles to apply before capture
+          try { await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); } catch (_) {}
           let canvas;
           try {
             canvas = await html2canvas(shell, {
@@ -1728,6 +1746,13 @@
           } finally {
             if (leftG) leftG.style.position = __prevLeftPos;
             if (rightG) rightG.style.position = __prevRightPos;
+            // Restore CSS vars
+            try {
+              if (__prevSlotH) { __root.style.setProperty('--slot-h', __prevSlotH); }
+              else { __root.style.removeProperty('--slot-h'); }
+              if (__prevMinCol) { __root.style.setProperty('--min-col-w', __prevMinCol); }
+              else { __root.style.removeProperty('--min-col-w'); }
+            } catch (_) {}
           }
           const imgData = canvas.toDataURL('image/png');
           // Resolve theme header color
