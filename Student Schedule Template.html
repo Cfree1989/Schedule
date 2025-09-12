@@ -189,7 +189,7 @@
 
     .schedule-shell {
       display: grid;
-      grid-template-columns: minmax(84px, 110px) 1fr minmax(84px, 110px);
+      grid-template-columns: minmax(60px, 80px) 1fr minmax(60px, 80px);
       gap: 8px;
       align-items: end; /* Align gutters and day blocks at the bottom. do not change this.*/
       overflow-x: auto;  /* Allow horizontal scroll when many students */
@@ -447,7 +447,7 @@
       .app-header { position: static; box-shadow: none; }
       .header-actions { display: none !important; }
       .app-main { padding: 0; }
-      .schedule-shell { overflow: visible !important; grid-template-columns: minmax(58px, 72px) 1fr minmax(58px, 72px); }
+      .schedule-shell { overflow: visible !important; grid-template-columns: minmax(45px, 55px) 1fr minmax(45px, 55px); }
       .time-gutter, .time-gutter-right { position: static; }
       .paint-indicator { display: none !important; }
       table#totalsTable tfoot td { background: #e0d6c8; font-weight: 700; }
@@ -1113,7 +1113,7 @@
             // expected width for middle lane (student columns) across all 5 day blocks + gaps
             const minWidthPx = (studentsCount * minColW) * totalDays + (dayGap * (totalDays - 1));
             // add gutters width (left + right) estimated at 2 * 96px and day gap padding safety
-            const gutters = 96 * 2; // aligns with schedule-shell minmax(84px, 110px)
+            const gutters = 80 * 2; // aligns with schedule-shell minmax(60px, 80px)
             const safety = 24;
             const computedMin = minWidthPx + gutters + safety;
             const floorMin = 900; // smaller baseline so scroll will appear earlier
@@ -1733,11 +1733,11 @@
           // Prefer filling height to maximize size
           const ratioW = availableW / canvas.width;
           const ratioH = availableH / canvas.height;
-          const ratio = Math.min(ratioW, ratioH) * 1.02; // slight oversize to utilize space
+          const ratio = Math.min(ratioW, ratioH); // ensure image fits within available width/height for even margins
           const targetW = canvas.width * ratio;
           const targetH = canvas.height * ratio;
           const targetX = Math.max(margin, margin + (availableW - targetW) / 2);
-          const targetY = Math.max(topY, topY + (availableH - targetH) / 2);
+          const targetY = topY; // align schedule image directly under header (no vertical centering)
 
           // Themed header bar and title on page 1
           const title = (window.__DataManager?.state?.settings?.headerTitle) || 'STUDENT WORKER SCHEDULE | 2024–2025';
@@ -1747,7 +1747,7 @@
           doc.setTextColor(255,255,255);
           doc.setFontSize(13);
           doc.text(title, margin, 22);
-          doc.text(dateStr, pageWidth / 2, 22, { align: 'center' });
+          doc.text(dateStr, pageWidth - margin, 22, { align: 'right' });
           doc.setTextColor(0,0,0);
 
           doc.addImage(imgData, 'PNG', targetX, targetY, targetW, targetH);
@@ -1874,7 +1874,7 @@
               doc.setTextColor(255,255,255);
               doc.setFontSize(12);
               doc.text(title, data.settings.margin.left, 22);
-              doc.text(dateStr, pageWidth / 2, 22, { align: 'center' });
+              doc.text(dateStr, pageWidth - margin, 22, { align: 'right' });
               doc.setTextColor(0,0,0);
               const pageStr = 'Page ' + (data.pageNumber || 1);
               doc.text(pageStr, pageWidth - data.settings.margin.right, pageHeight - 12, { align: 'right' });
