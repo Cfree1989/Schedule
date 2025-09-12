@@ -28,6 +28,7 @@
       --corner-r: 10px;
       --grid-line: 2px;
       --min-col-w: 20px; /* minimum width per student column (timeslots) */
+      --gutter-min-w: 80px; /* minimum width for left/right time gutters */
     }
 
     /* Summer Theme - Bright and Vibrant */
@@ -189,7 +190,7 @@
 
     .schedule-shell {
       display: grid;
-      grid-template-columns: minmax(60px, 80px) 1fr minmax(60px, 80px);
+      grid-template-columns: minmax(var(--gutter-min-w, 80px), var(--gutter-min-w, 80px)) 1fr minmax(var(--gutter-min-w, 80px), var(--gutter-min-w, 80px));
       gap: 8px;
       align-items: end; /* Align gutters and day blocks at the bottom. do not change this.*/
       overflow-x: auto;  /* Allow horizontal scroll when many students */
@@ -229,6 +230,9 @@
 
     /* Draw dividers per item so we can skip the last one and avoid double bottom border */
     .time-gutter, .time-gutter-right { background-image: none; }
+    /* Ensure each gutter sticks to its respective side */
+    .time-gutter { left: 0; right: auto; }
+    .time-gutter-right { right: 0; left: auto; }
     /* All time rows have consistent borders */
     .time-gutter .time, .time-gutter-right .time { box-sizing: border-box; border-top: var(--grid-line) solid var(--border); border-bottom: 0; }
     .time-gutter .time:first-child, .time-gutter-right .time:first-child { border-top: none; }
@@ -967,6 +971,15 @@
             b.textContent = lbl.replace('–','-');
             right.appendChild(b);
           });
+          // After rendering, measure the widest time label and ensure gutters can't shrink below it
+          try {
+            const root = document.documentElement;
+            const times = Array.from(left.querySelectorAll('.time'));
+            const widths = times.map(t => t.getBoundingClientRect().width);
+            const maxW = Math.ceil(Math.max(0, ...widths));
+            const needed = Math.max(80, maxW + 12); // padding/border safety
+            root.style.setProperty('--gutter-min-w', needed + 'px');
+          } catch (e) { console.warn('gutter width measure failed', e); }
         },
         // Compute and render totals table from state
         renderTotals() {
@@ -1105,13 +1118,15 @@
             const cs = getComputedStyle(document.documentElement);
             const minColStr = cs.getPropertyValue('--min-col-w') || '20px';
             const minColW = parseInt(String(minColStr).trim().replace('px','')) || 20;
+            const gutterStr = cs.getPropertyValue('--gutter-min-w') || '80px';
+            const gutterW = parseInt(String(gutterStr).trim().replace('px','')) || 80;
             const studentsCount = Math.max(1, (students?.length || 0));
             const dayGap = 4; // matches .week-grid gap
             const totalDays = 5;
             // expected width for middle lane (student columns) across all 5 day blocks + gaps
             const minWidthPx = (studentsCount * minColW) * totalDays + (dayGap * (totalDays - 1));
             // add gutters width (left + right) estimated at 2 * 96px and day gap padding safety
-            const gutters = 80 * 2; // aligns with schedule-shell minmax(60px, 80px)
+            const gutters = gutterW * 2;
             const safety = 24;
             const computedMin = minWidthPx + gutters + safety;
             const floorMin = 900; // smaller baseline so scroll will appear earlier
@@ -1671,8 +1686,8 @@
             return;
           }
 
-          const margin = 16; // pt (tighter)
-          const headerBarH = 36; // pt
+          const margin = 10; // pt (tighter)
+          const headerBarH = 32; // pt
           const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
           const pageWidth = doc.internal.pageSize.getWidth();
           const pageHeight = doc.internal.pageSize.getHeight();
@@ -1722,7 +1737,7 @@
           const g = parseInt(hex.substring(2,4), 16) || 51;
           const b = parseInt(hex.substring(4,6), 16) || 51;
           const availableW = pageWidth - margin * 2;
-          const topY = margin + headerBarH + 4; // slightly tighter
+          const topY = margin + headerBarH + 2; // slightly tighter
           const availableH = pageHeight - topY - margin;
           // Prefer filling height to maximize size
           const ratioW = availableW / canvas.width;
@@ -1829,7 +1844,7 @@
             body,
             theme: 'grid',
             styles: { fontSize: 10, cellPadding: 4 },
-            headStyles: { fillColor: [234,227,217], textColor: 0 },
+            headStyles: { fillColor: [234,227,217], textColor: 0, halign: 'center' },
             columnStyles: {
               0: { halign: 'left', cellWidth: 175 },
               1: { halign: 'center', cellWidth: 50 },
@@ -1849,16 +1864,10 @@
             showHead: 'everyPage',
             showFoot: 'lastPage',
             pageBreak: 'auto',
-            didDrawCell: (data) => {
-              // Center all footer cells except the first one (DAILY TOTALS text)
+            didParseCell: (data) => {
+              // Ensure footer numeric cells are centered in PDF output
               if (data.section === 'foot') {
-                if (data.column.index === 0) {
-                  // Left align the first column (DAILY TOTALS text)
-                  data.cell.textAlign = 'left';
-                } else {
-                  // Center all other columns
-                  data.cell.textAlign = 'center';
-                }
+                data.cell.styles.halign = 'center';
               }
             },
             didDrawPage: (data) => {
