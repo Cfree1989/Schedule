@@ -5,25 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Student Worker Schedule | Single-file App</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23705c49'/%3E%3Ctext x='50%25' y='50%25' dy='.35em' text-anchor='middle' font-family='Segoe UI, Arial' font-size='32' fill='%23ffffff'%3ES%3C/text%3E%3C/svg%3E" />
+  <script>
+  (function() {
+    var t = (function(){ try { return localStorage.getItem('studentScheduleTheme'); } catch (e) { return null; } })() || 'fall';
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+  </script>
   <style>
-    /* Spring Theme */
+    /* Fall Theme (base) */
     :root {
-      --bg: #faf8f4;
-      --surface: #fffdf8;
-      --text: #2a2a2a;
-      --muted-text: #4a4a4a;
-      --border: #e5ded2;
-      --header-bg: #9479a7;
+      --bg: #f5f1eb;
+      --surface: #fdf6f0;
+      --text: #3e2723;
+      --muted-text: #5d4037;
+      --border: #d7ccc8;
+      --header-bg: #8d6e63;
       --header-text: #ffffff;
-      --accent: #b88a51;
-      --accent-2: #7d9a6d;
-      --danger: #ab4e4e;
-      --focus: #2b7bbb;
-      --chip-bg: #efe7dc;
+      --accent: #d84315;
+      --accent-2: #689f38;
+      --danger: #d32f2f;
+      --focus: #1976d2;
+      --chip-bg: #efebe9;
 
-      --day-header-bg: #cddba4;
-      --legend-bg: #f2ebe0;
-      --grid-bg: #fffdf8;
+      --day-header-bg: #d7ccc8;
+      --legend-bg: #f3e5f5;
+      --grid-bg: #fdf6f0;
       --slot-h: 28px;
       --corner-r: 10px;
       --grid-line: 2px;
@@ -51,24 +57,24 @@
       --grid-bg: #fffef7;
     }
 
-    /* Fall Theme - Warm Earth Tones */
-    [data-theme="fall"] {
-      --bg: #f5f1eb;
-      --surface: #fdf6f0;
-      --text: #3e2723;
-      --muted-text: #5d4037;
-      --border: #d7ccc8;
-      --header-bg: #8d6e63;
+    /* Spring Theme */
+    [data-theme="spring"] {
+      --bg: #faf8f4;
+      --surface: #fffdf8;
+      --text: #2a2a2a;
+      --muted-text: #4a4a4a;
+      --border: #e5ded2;
+      --header-bg: #9479a7;
       --header-text: #ffffff;
-      --accent: #d84315;
-      --accent-2: #689f38;
-      --danger: #d32f2f;
-      --focus: #1976d2;
-      --chip-bg: #efebe9;
+      --accent: #b88a51;
+      --accent-2: #7d9a6d;
+      --danger: #ab4e4e;
+      --focus: #2b7bbb;
+      --chip-bg: #efe7dc;
 
-      --day-header-bg: #d7ccc8;
-      --legend-bg: #f3e5f5;
-      --grid-bg: #fdf6f0;
+      --day-header-bg: #cddba4;
+      --legend-bg: #f2ebe0;
+      --grid-bg: #fffdf8;
     }
 
 
@@ -1981,7 +1987,7 @@
             metadata: { createdAt, exportedAt: new Date().toISOString(), source: 'export' },
             settings: {
               ...window.__DataManager.state.settings,
-              theme: window.__DataManager.state.settings?.theme || 'spring'
+              theme: window.__DataManager.state.settings?.theme || 'fall'
             },
             students: window.__DataManager.state.students,
             schedule: window.__DataManager.state.schedule,
